@@ -10,6 +10,8 @@
 #   and at .ipynb_checkpoints/download_shapes-checkpoint.ipynb #
 ################################################################
 
+### Need a "def smooth()" to create a grid that blurs the categories.
+
 import shutil
 import urllib.request as request
 from contextlib import closing
@@ -133,12 +135,19 @@ cat_gdf = geopandas.read_file('spc/day1otlk-shp/day1otlk_cat.shp')
 #                    7: 'magenta'}
 
 # Set colors
+"""
 cat_plot_colors = {'Marginal Risk': 'green',
                    'Slight Risk': 'yellow',
                    'Enhanced Risk': 'orange',
                    'Moderate Risk': 'red',
                    'High Risk': 'magenta'}
+"""
 
+cat_plot_colors = {'Marginal Risk': '#74a16c',
+                   'Slight Risk': '#fbe079',
+                   'Enhanced Risk': '#f3a671',
+                   'Moderate Risk': '#d26d6a',
+                   'High Risk': '#e29ee9'}
 
 # Set Coordinate Reference System for the map
 if where=='CONUS':
