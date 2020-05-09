@@ -5,12 +5,10 @@
 # Code by: Stephen Mullens                                     #
 # May 2020                                                     #
 #                                                              #
-# Original code from https://github.com/frontogenesis/metpy/   #
+# Code inspired by https://github.com/frontogenesis/metpy/     #
 #   look at .ipynb_checkpoints/SPC Outlooks-checkpoint.ipynb   #
 #   and at .ipynb_checkpoints/download_shapes-checkpoint.ipynb #
 ################################################################
-
-### Need a "def smooth()" to create a grid that blurs the categories.
 
 import urllib.request as request
 from contextlib import closing
@@ -42,11 +40,8 @@ from datetime import datetime as dt
 from dateutil import tz
 
 
-# Trim data before smoothing.
-# Find out how far 25 miles is in degrees at each corner. Use that to do the smoothing.
-
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
-where='data'
+where='Florida'
 
 # What type of plot: 'exact' or 'smooth'
 plot_type = 'smooth'
@@ -75,6 +70,7 @@ def download_zip_file(file_url: str, root_folder: str):
 
 # Clears all contents of folder specified in the argument
 def clear_folder_contents(folder):
+
     folder = f'{folder}/'
     extensions = ['.zip','.dbf','.prj','.shp','.shx']
     last = ['-shp']
@@ -92,6 +88,7 @@ def clear_folder_contents(folder):
 
 # Calculate how many grids 25km is
 def dist_in_grids(x,y,data,extent):
+
     resolution = round(x[0,1]-x[0,0],2)
 
     # Largest distance is determined by northernmost latitude
@@ -113,11 +110,6 @@ def dist_in_grids(x,y,data,extent):
     dx = round(degrees(dlon) / resolution * 10,0)
     grids = max(dx,dy)
     print(f'  --> Res: {resolution}')
-    #print(f'  --> lat: {lat}')
-    #print(f'  --> dlat: {dlat}')
-    #print(f'  --> dlon: {dlon}')
-    #print(f'  --> dx: {dx}')
-    #print(f'  --> dy: {dy}')
     print(f'  --> Grids: {int(grids)} ({int(dx)} vs {int(dy)})')
 
     return grids
@@ -165,20 +157,25 @@ def trim_to_extent(x,y,data,mask,extent):
 
 # Calculate distance between lat/lon points.
 def distance(lat1, lon1, lat2, lon2):
+
     # convert decimal degrees to radians 
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
     # haversine formula 
     dlon = lon2 - lon1
     dlat = lat2 - lat1
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
     c = 2 * asin(sqrt(a))
+
     # Radius of earth in kilometers is 6371
     km = 6371* c
+
     return km
 
 
 # Get average value of places within 25 miles.
 def get_average_values(x,y,data,mask,grids):
+
     start_timer = dt.now()
     print('--> Smoothing')
 
@@ -186,29 +183,41 @@ def get_average_values(x,y,data,mask,grids):
     smooth_data = np.zeros((i,j))
     last_percent = ''
 
+    # For each grid cell in the data...
     for lat in range(i):
         for lon in range(j):
+
+            # ...get its characteristics...
             sum_cats = count = 0
             orig_mask = mask[lat,lon]
             orig_value = data[lat,lon]
             orig_x = x[lat,lon]
             orig_y = y[lat,lon]
-            #if orig_mask:
+
+            # ...search through its neighboring cells...
             for look_x in range(i):
               if abs(look_x-lat)<=grids:
                 for look_y in range(j):
                   if abs(look_y-lon)<=grids:
+
+                    # ...and their characteristics.
                     include_mask = mask[look_x,look_y]
                     include_value = data[look_x,look_y]
                     include_x = x[look_x,look_y]
                     include_y = y[look_x,look_y]
+
+                    # If the neighbor is close enough...
                     if include_mask:
                         dist = distance(include_y,include_x,orig_y,orig_x)
                         if dist < 40.2:     # 25 miles = 40.23 km
-                            #if lat==int(i/2) and lon==int(i/2):
-                            #    print(f'  {orig_x}/{orig_y}->{include_x}/{include_y}->{dist:.1f}: {include_value}')
+
+                            # ...include it in the smoothing around this location.
                             sum_cats += include_value
                             count += 1
+                            #if lat==int(i/2) and lon==int(i/2):
+                            #    print(f'  {orig_x}/{orig_y}->{include_x}/{include_y}->{dist:.1f}: {include_value}')
+
+            # Record the average category of all the nearby locations.
             if count>0: smooth_data[lat,lon] = sum_cats/count
             else: smooth_data[lat,lon] = orig_value
 
@@ -245,15 +254,32 @@ def convert_datetime_from_spc_to_local(string,start_end):
     return date_time
 
 
+# Get the Great Lakes for the map.
+def Great_Lakes():
+    shpfilename = shpreader.natural_earth(resolution='10m',
+                                      category='physical',
+                                      name='lakes')
+    reader = shpreader.Reader(shpfilename)
+    all_lakes = list(reader.records())
+
+    list_of_lakes = ['Lake Superior','Lake Huron','Lake Michigan','Lake Erie','Lake Ontario']
+
+    GL = [lake for lake in all_lakes if lake.attributes['name'] in list_of_lakes]
+    lakes = [gl.geometry for gl in GL]
+
+    return lakes
 
 #
 # STEP 1: Get the files
 #
 
 big_start_timer = dt.now()
-
 print('--> Get the files')
 
+shapefiles = {
+    "spc": {"categorical_day1": "https://www.spc.noaa.gov/products/outlook/day1otlk-shp.zip"}
+            }
+"""
 shapefiles = {
     "spc": {
         "categorical_day1": "https://www.spc.noaa.gov/products/outlook/day1otlk-shp.zip",
@@ -264,8 +290,7 @@ shapefiles = {
         "categorical_day6": "https://www.spc.noaa.gov/products/exper/day4-8/day6prob-shp.zip",
         "categorical_day7": "https://www.spc.noaa.gov/products/exper/day4-8/day7prob-shp.zip",
         "categorical_day8": "https://www.spc.noaa.gov/products/exper/day4-8/day8prob-shp.zip"
-    }} #,
-"""
+    },
     "wpc": {
         "excessive_rain_day1": "https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day1_latest.zip",
         "excessive_rain_day2" : "https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day2_latest.zip",
@@ -289,9 +314,9 @@ for folder in target_folders:
         clear_folder_contents(folder)
 
 # Get the shapefiles
+print("--> Getting ZIPs")
 start_timer = dt.now()
 
-print("--> Getting ZIPs")
 for issuing_center in shapefiles:
     for product in shapefiles[issuing_center]:
         download_zip_file(file_url = shapefiles[issuing_center][product], root_folder = issuing_center)
@@ -317,9 +342,19 @@ print(f"  --> Got ZIPs ({tsec:.2f} seconds)")
 cat_plot_colors = {'General Thunderstorms Risk':'#C1E9C1',
                    'Marginal Risk': '#66A366',
                    'Slight Risk': '#FFE066',
-                   'Enhanced Risk': '#f3a671',
-                   'Moderate Risk': '#d26d6a',
+                   'Enhanced Risk': '#FFA366',
+                   'Moderate Risk': '#E06666',
                    'High Risk': '#e29ee9'}
+
+cat_fill_colors = ['white','#C1E9C1','#66A366','#FFE066','#FFA366','#E06666','magenta']
+"""
+# Set colors
+cat_plot_colors = {'Marginal Risk': 'green',
+                   'Slight Risk': 'yellow',
+                   'Enhanced Risk': 'orange',
+                   'Moderate Risk': 'red',
+                   'High Risk': 'magenta'}
+"""
 
 
 # Set Coordinate Reference System, extent, and legend location for the map
@@ -337,6 +372,7 @@ elif where=='Florida':
     leg_loc = 3
 elif where=='data':
     extents = []
+    # Find the extent of each category in the outlook.
     for key in cat_plot_colors.keys():
         geometries = cat_gdf[cat_gdf['LABEL2'] == key]
         if len(geometries) > 0:
@@ -365,11 +401,17 @@ elif where=='data':
         map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
         leg_loc = 4
 
+# Put attribution text in opposite corner as the legend.
+if leg_loc==3:
+    att_x = 1-0.006; att_y = 0.01; att_ha='right'
+if leg_loc==4:
+    att_x = 0.006; att_y = 0.01; att_ha='left'
 
 
 #
 # STEP 3: Make the lat/lon grid.
 #
+
 start_timer = dt.now()
 print('--> Make grid')
 
@@ -391,6 +433,7 @@ elif setting=='low':
 
 #
 # Get the US's shape from natural_earth's countries.
+#   Helps speed up the smoothing process.
 #
 
 shpfilename = shpreader.natural_earth(resolution='10m',
@@ -413,7 +456,7 @@ print(f"  --> Grid made ({tsec:.2f} seconds)")
 
 
 #
-# STEP 4: Determine which points are in the outlook.
+# STEP 4: Determine which grid points are in the outlook.
 #
 print('--> Mask SPC categories')
 
@@ -426,7 +469,7 @@ for key in cat_plot_colors.keys():
 
     if len(geometries) > 0:
         row = geometries.index[0]
-        print(f'  --> {key}: {geometries.at[row,"fill"]} (or {geometries.at[row,"stroke"]})')
+        print(f'  --> {key}: {geometries.at[row,"fill"]}')
 
         # Get the polygon or multipolygon for this category.
         cat_geom = geometries.at[row,'geometry']
@@ -477,29 +520,6 @@ if plot_type=='smooth':
 start_timer = dt.now()
 print("--> Making maps")
 
-"""
-# Read in Shapefile
-cat_gdf = geopandas.read_file('spc/day1otlk-shp/day1otlk_cat.shp')
-
-# Set colors
-# For SPC outlooks: "2" references a "General Thunderstorm" risk, "3" a Marginal Risk, "4" a Slight Risk, and so on
-
-# cat_plot_colors = { #2: 'palegreen',
-#                    3: 'green',
-#                    4: 'yellow',
-#                    5: 'brown',
-#                    6: 'red',
-#                    7: 'magenta'}
-
-# Set colors
-cat_plot_colors = {'Marginal Risk': 'green',
-                   'Slight Risk': 'yellow',
-                   'Enhanced Risk': 'orange',
-                   'Moderate Risk': 'red',
-                   'High Risk': 'magenta'}
-"""
-
-
 # Set Coordinate Reference System from the Shapefile Data
 data_crs = ccrs.PlateCarree()
 
@@ -531,25 +551,9 @@ print("--> Plot SPC polygons")
 
 # Create colormap
 cmap_name='SPC'
-colors = [ (0/255,0/255,0/255,0),
-            (193/255,233/255,193/255,1),  #TSTM
-            (102/255,163/255,102/255,1),  #MRGL
-            (255/255,224/255,102/255,1),  #SLGT
-            (255/255,163/255,102/255,1),  #ENH
-            (255/255,0/255,0/255,1),      #MDT
-            (0/255,0/255,255/255,1)      #HIGH
-        ]
-colors = [ (255/255,255/255,255/255),
-            (193/255,233/255,193/255),  #TSTM
-            (102/255,163/255,102/255),  #MRGL
-            (255/255,224/255,102/255),  #SLGT
-            (255/255,163/255,102/255),  #ENH
-            (255/255,0/255,0/255),      #MDT
-            (0/255,0/255,255/255)      #HIGH
-        ]
 n_bin = 100
 cm = LinearSegmentedColormap.from_list(
-        cmap_name, colors, N=n_bin)
+        cmap_name, cat_fill_colors, N=n_bin)
 
 # Plot the categories
 if plot_type=='smooth':
@@ -574,35 +578,50 @@ ax.set_extent(extent, data_crs)
 
 # Add map features
 print("--> Adding cfeatures")
-ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=6,edgecolor='k')
+ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=2,edgecolor='k')
 ax.add_feature(cfeature.LAND.with_scale('50m'))
 ax.add_feature(cfeature.COASTLINE.with_scale('50m'))
 ax.add_feature(cfeature.STATES.with_scale('50m'))
-#ax.add_feature(cfeature.LAKES.with_scale('50m'))
 
+# Add Great Lakes
+great_lakes = Great_Lakes()
+for lake in great_lakes:
+    ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'] )
 
 print("--> Legend, Title")
 # Plot the legend
-plt.legend(handles=legend_patches,loc=leg_loc,fontsize='small')
+kwargs = {'loc':leg_loc,
+            'fontsize':'small'
+         }
+plt.legend(handles=legend_patches,**kwargs).set_zorder(7)
 
 # Plot the titles
 plt.suptitle('SPC Day 1 Severe Storm Outlook', fontsize=18, fontweight='bold')
 plt.title(f'{start_time} through {end_time}', fontsize=12, loc='center')
+
+# Add attribution
+text = '@srmullens'
+kwargs = {'weight':'bold',
+                #'bbox':dict(boxstyle="round",ec='white',fc="white",alpha=0.75),
+                'va':'bottom',
+                'ha':att_ha,
+                'snap':True,
+                'zorder':7,
+                'transform':ax.transAxes
+            }
+ax.text(att_x,att_y,text,**kwargs)
+
 
 time_elapsed = dt.now() - start_timer
 tsec = round(time_elapsed.total_seconds(),2)
 print(f"--> Map made ({tsec:.2f} seconds)")
 
 
-zo = [_.zorder for _ in ax.get_children()]
-ch = [_ for _ in ax.get_children()]
-for i,z in enumerate(zo):  print(f'{z}: {ch[i]}')
-
 # Save
 print("--> Save")
 start_timer = dt.now()
 
-plt.savefig('spc/day1_categorical.png', dpi=96, bbox_inches='tight')
+plt.savefig('spc/day1_grid_categorical.png', dpi=96, bbox_inches='tight')
 
 time_elapsed = dt.now() - start_timer
 tsec = round(time_elapsed.total_seconds(),2)
@@ -612,8 +631,5 @@ print(f"--> Saved ({tsec:.2f} seconds)")
 big_time_elapsed = dt.now() - big_start_timer
 tsec = round(big_time_elapsed.total_seconds(),2)
 print(f"\n--> Done ({tsec:.2f} seconds)")
-
-#print("--> Done!")
-
 
 
