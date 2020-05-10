@@ -629,7 +629,7 @@ kwargs = {'loc':leg_loc,
 plt.legend(handles=legend_patches,**kwargs).set_zorder(7)
 
 # Plot the titles
-plt.suptitle('SPC Day 1 Severe Storm Outlook', fontsize=18, fontweight='bold', y=0.95)
+plt.suptitle(f'SPC Day {plot_day} Severe Storm Outlook', fontsize=18, fontweight='bold', y=0.95)
 plt.title(f'{start_time} through {end_time}', fontsize=12, loc='center')
 
 # Add attribution
