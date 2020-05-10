@@ -684,6 +684,13 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     print(f"\n--> Done ({tsec:.2f} seconds)")
 
 if __name__ == "__main__":
-    for plot_day in range(1,9):
+    time = dt.utcnow()
+    if time.hour in [1,12,13,16,20]: h1=1; h2=2
+    elif time.hour in [7,17]: h1=2; h2=3
+    elif time.hour in [8]: h1=3; h2=4
+    else: h1=4; h2=9
+
+    for plot_day in range(h1,h2):
         print(f"\n*** Day {plot_day} ***")
         grid_SPC_outlook(where,plot_type,plot_day,setting)
+
