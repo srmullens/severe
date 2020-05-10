@@ -36,7 +36,7 @@ from matplotlib.axes import Axes
 from cartopy.mpl.geoaxes import GeoAxes
 GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta
 from dateutil import tz
 
 
@@ -47,7 +47,7 @@ where='data'
 plot_type = 'smooth'
 
 # What SPC day do you want to plot?
-plot_day = 1
+plot_day = 5
 
 # What resolution do you want? 'low', 'mid', 'high'
 setting = 'low'
@@ -334,10 +334,10 @@ for zip_file in glob.glob(f"{os.getcwd()}/*.zip"):
     head, tail = os.path.split(zip_file)
     shutil.move(zip_file, f"zips/{tail}")
 
-
 # Read in Shapefile
 if plot_day<4: cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
 else: cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
+
 
 # Plot low categories as exact polygons,
 #   regardless of the original setting.
@@ -573,7 +573,6 @@ for i,risk in enumerate(reversed(list(cat_plot_colors.keys()))):
     legend_patches.append(patch)
 
 # Setup matplotlib figure
-#fig = plt.figure(1, figsize=(1024/96, 512/96))
 fig = plt.figure(1, figsize=(1024/48, 512/48))
 ax = plt.subplot(1, 1, 1, projection=map_crs)
 
@@ -592,6 +591,7 @@ if plot_type=='smooth':
                 'vmax':6,
                 'rasterized':True,
                 'transform':data_crs}
+    if plot_day >3: kwargs['vmax']=2
     pm = ax.pcolormesh(x,y,category,**kwargs)
 
 elif plot_type=='exact':
@@ -609,7 +609,6 @@ ax.set_extent(extent, data_crs)
 
 # Add map features
 print("--> Adding cfeatures")
-#ax.add_feature(cfeature.OCEAN.with_scale('50m'))
 if plot_type=='exact': ax.add_feature(cfeature.OCEAN.with_scale('50m'))
 elif plot_type=='smooth': ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=2,edgecolor='k')
 ax.add_feature(cfeature.LAND.with_scale('50m'),facecolor='w')
