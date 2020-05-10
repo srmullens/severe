@@ -1,0 +1,36 @@
+name: Gridded SPC Outlooks
+
+on:
+  schedule:
+    - cron: '10 1,4,7,12,13,17,20 * * *'
+    - cron: '40 8,16 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.7.7
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.7
+
+    - name: Import dependencies
+      run: pip install urllib contextlib zipfile shutil numpy pandas geopandas shapely
+
+    - name: Run code
+      run: python when_model_updates.py
+
+    - name: Commit files
+      run: |
+          git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
+          git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
+          git add .        # Adds file to commit
+          git add --all    # Adds only the file, not the Python setup folder.
+          # git commit -m "Add changes"
+          git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
