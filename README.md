@@ -6,7 +6,6 @@ Creates a map of the current Day 1 SPC Categorical Outlook, but the polygon edge
 
 ![SPC Outlook on 8 May 2020](day1_grid_categorical.png)
 
-## current_SPC_outlook.py
-Creates a map of the current Day 1 SPC Categorical Outlook, showing the original polygon shape.
+If the risk is less than a Slight, creates a map showing the original polygon shape.
 
 ![SPC Outlook on 8 May 2020](day1_categorical.png)
