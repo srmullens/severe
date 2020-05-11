@@ -17,8 +17,8 @@ jobs:
     #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
     #    restore-keys: ${{ runner.os }}-pip-
 
+    - uses: actions/checkout@v2
     - name: Setup Miniconda
-      uses: actions/checkout@v2
       uses: goanpeca/setup-miniconda@v1
       with:
         auto-update-conda: true
