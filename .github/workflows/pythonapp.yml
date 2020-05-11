@@ -18,8 +18,7 @@ jobs:
 
     - name: Update pip
       run: |
-        curl https://pypi.org
-        python -m pip install --upgrade pip
+        curl https://bootstrap.pypa.io/get-pip.py | python
       
     - name: Import dependencies
       run: pip install contextlib zipfile shutil numpy pandas geopandas shapely requests
