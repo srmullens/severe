@@ -28,9 +28,9 @@ jobs:
         #pip install shutil 
         pip install numpy 
         pip install pandas 
-        #pip install geopandas 
+        pip install geopandas 
         #pip install shapely 
-        #pip install requests
+        pip install requests
 
     - name: Run code
       run: python grid_SPC_outlook.py
