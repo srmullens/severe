@@ -27,8 +27,10 @@ jobs:
         miniconda-version: latest
         activate-environment: foo
         python-version: 3.7
-    - name: Python
-      shell: python
+    #- name: Python
+    #  shell: bash -l {0}
+    #  run: conda list
+
       
     - name: Install dependencies
       run: |
