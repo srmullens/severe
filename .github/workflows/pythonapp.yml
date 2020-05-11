@@ -32,7 +32,7 @@ jobs:
         #conda init bash
         conda activate -n test
         conda env list
-      #shell: bash
+      shell: bash
       
     - name: Install dependencies
       run: |
