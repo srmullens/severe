@@ -16,6 +16,7 @@ jobs:
         python-version: 3.7
 
     - name: Import dependencies
+      run: pip install --upgrade pip
       run: pip install requests contextlib zipfile shutil numpy pandas geopandas shapely
 
     - name: Run code
