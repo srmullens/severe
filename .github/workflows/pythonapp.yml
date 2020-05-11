@@ -23,6 +23,7 @@ jobs:
       
     - name: Import dependencies
       run: |
+        pip install wheel
         pip install numpy pandas geopandas
         pip install geos
         pip install pyproj
