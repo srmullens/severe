@@ -18,6 +18,7 @@ jobs:
 
     - name: Update pip
       run: |
+        curl https://pypi.org
         python -m pip install --upgrade pip
       
     - name: Import dependencies
