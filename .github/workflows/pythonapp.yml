@@ -30,6 +30,7 @@ jobs:
     - name: Show conda list
       run: |
         conda env list
+        conda init bash
         conda activate test
         conda env list
       #shell: bash
