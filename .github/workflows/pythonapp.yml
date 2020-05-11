@@ -20,7 +20,7 @@ jobs:
       run: pip install --upgrade pip
       
     - name: Import dependencies
-      run: pip install requests contextlib zipfile shutil numpy pandas geopandas shapely
+      run: pip install contextlib zipfile shutil numpy pandas geopandas shapely
 
     - name: Run code
       run: python when_model_updates.py
