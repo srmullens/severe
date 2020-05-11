@@ -36,7 +36,7 @@ jobs:
     #- name: Install matplotlib
     #  run: pip install matplotlib
     - name: Install libproj-dev
-      run: apt-get install libproj-dev
+      run: sudo apt-get install libproj-dev
     - name: List installed packages
       run: pip list
     - name: Install cartopy 
