@@ -28,7 +28,10 @@ jobs:
         activate-environment: test
         python-version: 3.7
     - name: Show conda list
-      run: conda env list
+      run: |
+        conda env list
+        conda activate test
+        conda env list
       #shell: bash
       
     - name: Install dependencies
