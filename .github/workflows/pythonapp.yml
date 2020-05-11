@@ -40,6 +40,7 @@ jobs:
 
     - name: Run code
       run: |
+        conda activate foo
         python -V
         python grid_SPC_outlook.py
 
