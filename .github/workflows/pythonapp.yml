@@ -10,11 +10,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.7.7
-      uses: actions/setup-python@v2
+    - uses: goanpeca/setup-miniconda@v1
       with:
+        auto-update-conda: true
+        miniconda-version: latest
+        activate-environment: foo
         python-version: 3.7
+    - name: Bash
+      shell: bash -l {0}
+      run: |
+        conda info
+        conda list
+        
+    #- uses: actions/checkout@v2
+    #- name: Set up Python 3.7.7
+    #  uses: actions/setup-python@v2
+    #  with:
+    #    python-version: 3.7
 
     #- name: Update pip
       #run: |
@@ -24,8 +36,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get install libproj-dev
-        pip3 install wheel numpy
-        pip3 install geos pandas geopandas requests pyshp matplotlib cartopy
+        conda install -c conda-forge wheel numpy
+        conda install -c conda-forge geos pandas geopandas requests pyshp matplotlib
     #- name: Install libproj-dev
     #  run: sudo apt-get install libproj-dev
     #- name: Install shapely
@@ -46,7 +58,8 @@ jobs:
     #  run: pip install matplotlib
     - name: List installed packages
       run: pip3 list
-    #- name: Install cartopy 
+    - name: Install cartopy 
+      run: conda install -c conda-forge cartopy
     #  run: pip3 install cartopy
 
     - name: Run code
