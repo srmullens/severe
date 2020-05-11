@@ -23,15 +23,10 @@ jobs:
       
     - name: Import dependencies
       run: |
-        #pip install contextlib 
-        #pip install zipfile 
-        #pip install shutil 
-        pip install numpy 
-        pip install pandas 
-        pip install geopandas
+        pip install numpy pandas geopandas
+        pip install GEOS
         pip install matplotlib 
         pip install cartopy
-        #pip install shapely 
         pip install requests
 
     - name: Run code
