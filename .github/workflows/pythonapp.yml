@@ -41,7 +41,11 @@ jobs:
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
         #conda install -c conda-forge cartopy
     - name: List files 
-      run: ls -la
+      run: |
+        pwd
+        ls -la
+        ../
+        ls -la
 
     - name: Run code
       run: python grid_SPC_outlook.py
