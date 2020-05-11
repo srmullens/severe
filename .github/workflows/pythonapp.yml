@@ -17,7 +17,10 @@ jobs:
     #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
     #    restore-keys: ${{ runner.os }}-pip-
 
-    - uses: goanpeca/setup-miniconda@v1
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Setup Miniconda
+      uses: goanpeca/setup-miniconda@v1
       with:
         auto-update-conda: true
         miniconda-version: latest
@@ -40,22 +43,13 @@ jobs:
         sudo apt-get install libproj-dev
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
 
-    - name: List files 
-      run: |
-        pwd
-        ls -la
-        cd ../
-        pwd
-        ls -la
-        cd ../
-        pwd
-        ls -la
-        cd ../
-        pwd
-        ls -la
-        cd ../
-        pwd
-        ls -la
+    #- name: List files 
+    #  run: |
+    #    pwd
+    #    ls -la
+    #    cd ../
+    #    pwd
+    #    ls -la
 
     - name: Run code
       run: python grid_SPC_outlook.py
