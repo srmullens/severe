@@ -31,10 +31,10 @@ jobs:
       run: pip install requests
     - name: Install geos
       run: pip install geos
-    - name: Install pyproj
-      run: pip install pyproj
     - name: Install matplotlib
       run: pip install matplotlib
+    - name: List installed packages
+      run: pip list
     - name: Install cartopy 
       run: pip install cartopy
 
