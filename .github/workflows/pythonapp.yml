@@ -31,9 +31,9 @@ jobs:
       run: |
         conda env list
         conda env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";'
-        conda init bash
-        conda activate test
-        conda env list
+        #conda init bash
+        #conda activate test
+        #conda env list
       #shell: bash
       
     - name: Install dependencies
@@ -41,13 +41,14 @@ jobs:
         sudo apt-get install libproj-dev
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
         python -V
+        python3 -V
 
     - name: Run code
       shell: bash
       run: |
-        #conda activate foo
         python -V
-        python grid_SPC_outlook.py
+        python3 -V
+        python3 grid_SPC_outlook.py
 
     - name: Commit files
       run: |
