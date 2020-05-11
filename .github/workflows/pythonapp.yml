@@ -30,6 +30,7 @@ jobs:
     - name: Show conda list
       run: |
         conda env list
+        conda env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";'
         conda init bash
         conda activate test
         conda env list
