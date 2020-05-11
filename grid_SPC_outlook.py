@@ -10,8 +10,6 @@
 #   and at .ipynb_checkpoints/download_shapes-checkpoint.ipynb #
 ################################################################
 
-print(sys.version)
-
 #import urllib.request as request
 import requests
 from contextlib import closing
