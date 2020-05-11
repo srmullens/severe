@@ -24,7 +24,8 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get install libproj-dev
-        pip3 install wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
+        pip3 install wheel numpy
+        pip3 install geos pandas geopandas requests pyshp matplotlib cartopy
     #- name: Install libproj-dev
     #  run: sudo apt-get install libproj-dev
     #- name: Install shapely
