@@ -11,55 +11,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     
-    #- uses: actions/cache@v1
-    #  with:
-    #    path: ~/.cash/pip
-    #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-    #    restore-keys: ${{ runner.os }}-pip-
+    # This should cash the environment so we don't 
+    # have to spend 3 minutes building a new one each time.
+    - uses: actions/cache@v1
+      with:
+        path: ~/.cash/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: ${{ runner.os }}-pip-
 
+    # Checkout allows us to use the files in this repository.
     - uses: actions/checkout@v2
     - name: Setup Miniconda
+      # This sets up conda... 
+      # ...auto-creates a test environment (super annoying)...
+      # ... and installs the python version and dependencies there.
       uses: goanpeca/setup-miniconda@v1
       with:
         auto-update-conda: true
         miniconda-version: latest
         activate-environment: test
         python-version: 3.7
-    - name: Show conda list
-      run: |
-        conda env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";'
-        source /usr/share/miniconda3/etc/profile.d/conda.sh
-        conda activate test
-        conda env list
-      shell: bash
       
     - name: Install dependencies
       run: |
+        # Change source to use conda commands
         source /usr/share/miniconda3/etc/profile.d/conda.sh
+        # Change environment to where all the dependencies are installed anyway.
         conda activate test
+        # This needs to be installed via apt-get...
         sudo apt-get install libproj-dev
+        # ... but everything else can come via conda-forge.
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
-        python -V
-        python3 -V
 
     - name: Run code
       shell: bash
       run: |
-        python -V
-        python3 -V
+        # Change source to use conda commands
         source /usr/share/miniconda3/etc/profile.d/conda.sh
+        # Change environment to where all the dependencies were installed.
         conda activate test
+        # Run the code!
         python3 grid_SPC_outlook.py
 
+    # We created some files. But we need to commit them to the repository.
     - name: Commit files
       run: |
           git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .        # Adds file to commit
-          git add --all    # Adds only the file, not the Python setup folder.
+          git add --all    # Adds only the file, not the folder where Python & conda was set up.
           # git commit -m "Add changes"
           git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
 
+    # Now push committed changes to the repo.
     - name: Push changes
       uses: ad-m/github-push-action@master
       with:
