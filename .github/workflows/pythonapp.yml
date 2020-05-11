@@ -25,10 +25,10 @@ jobs:
       with:
         auto-update-conda: true
         miniconda-version: latest
-        activate-environment: foo
+        #activate-environment: foo
         python-version: 3.7
     - name: Show conda list
-      run: conda list
+      run: conda env list
       #shell: bash
       
     - name: Install dependencies
@@ -40,7 +40,7 @@ jobs:
     - name: Run code
       shell: bash
       run: |
-        conda activate foo
+        #conda activate foo
         python -V
         python grid_SPC_outlook.py
 
