@@ -36,9 +36,12 @@ jobs:
       run: |
         sudo apt-get install libproj-dev
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
+        python -V
 
     - name: Run code
-      run: python grid_SPC_outlook.py
+      run: |
+        python -V
+        python grid_SPC_outlook.py
 
     - name: Commit files
       run: |
