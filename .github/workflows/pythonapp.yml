@@ -1,9 +1,10 @@
 name: Gridded SPC Outlooks
 
 on:
-  schedule:
-    - cron: '10 1,4,7,12,13,17,20 * * *'
-    - cron: '40 8,16 * * *'
+  push
+  #schedule:
+  #  - cron: '10 1,4,7,12,13,17,20 * * *'
+  #  - cron: '40 8,16 * * *'
 
 jobs:
   build:
@@ -15,8 +16,10 @@ jobs:
       with:
         python-version: 3.7
 
-    - name: Import dependencies
+    - name: Update pip
       run: pip install --upgrade pip
+      
+    - name: Import dependencies
       run: pip install requests contextlib zipfile shutil numpy pandas geopandas shapely
 
     - name: Run code
