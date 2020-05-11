@@ -9,6 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    with:
+      path: ~/.cash/pip
+      key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+      restore-keys: ${{ runner.os }}-pip-
     steps:
     - uses: goanpeca/setup-miniconda@v1
       with:
@@ -27,24 +31,27 @@ jobs:
     #  uses: actions/setup-python@v2
     #  with:
     #    python-version: 3.7
-
-    #- name: Update pip
-      #run: |
-        #curl https://bootstrap.pypa.io/get-pip.py | python
-        #pip install --upgrade setuptools
       
     - name: Install dependencies
       run: |
         sudo apt-get install libproj-dev
-        #conda install -c conda-forge wheel numpy
-        #conda install -c conda-forge geos pandas geopandas requests pyshp matplotlib cartopy
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
-        #conda install -c conda-forge cartopy
+
     - name: List files 
       run: |
         pwd
         ls -la
         cd ../
+        pwd
+        ls -la
+        cd ../
+        pwd
+        ls -la
+        cd ../
+        pwd
+        ls -la
+        cd ../
+        pwd
         ls -la
 
     - name: Run code
