@@ -21,15 +21,22 @@ jobs:
         #curl https://bootstrap.pypa.io/get-pip.py | python
         #pip install --upgrade setuptools
       
-    - name: Import dependencies
-      run: |
-        pip install wheel
-        pip install numpy pandas geopandas
-        pip install geos
-        pip install pyproj
-        pip install matplotlib 
-        pip install cartopy
-        pip install requests
+    - name: Install wheel
+      run: pip install wheel
+    - name: Install numpy
+      run: pip install numpy
+    - name: Install pandas geopandas
+      run: pip install pandas geopandas
+    - name: Install requests
+      run: pip install requests
+    - name: Install geos
+      run: pip install geos
+    - name: Install pyproj
+      run: pip install pyproj
+    - name: Install matplotlib
+      run: pip install matplotlib
+    - name: Install cartopy 
+      run: pip install cartopy
 
     - name: Run code
       run: python grid_SPC_outlook.py
