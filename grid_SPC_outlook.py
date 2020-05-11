@@ -10,8 +10,8 @@
 #   and at .ipynb_checkpoints/download_shapes-checkpoint.ipynb #
 ################################################################
 
-#import urllib.request as request
-import requests
+import urllib.request as request
+#import requests
 from contextlib import closing
 import zipfile
 import os
@@ -68,16 +68,16 @@ def download_zip_file(file_url, root_folder):
     file = file_url.split('/')[-1]
     folder = file.split('.')[0]
 
-    """
+    
     with closing(request.urlopen(file_url)) as r:
         with open(file, 'wb') as f:
             shutil.copyfileobj(r, f)
+            
     """
-
     with requests.get(file_url) as r:
         with open(file, 'wb') as f:
             shutil.copyfileobj(r, f)
-
+    """
 
     with zipfile.ZipFile(file, "r") as zip_ref:
         zip_ref.extractall(f"{root_folder}/{folder}")
