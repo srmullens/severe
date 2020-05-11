@@ -24,7 +24,7 @@ jobs:
     - name: Import dependencies
       run: |
         pip install numpy pandas geopandas
-        pip install proj>=4.9.0
+        pip install -Iv proj>=4.9.0
         pip install matplotlib 
         pip install cartopy
         pip install requests
