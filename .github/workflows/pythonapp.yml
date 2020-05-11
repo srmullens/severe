@@ -25,7 +25,7 @@ jobs:
       run: |
         pip install numpy pandas geopandas
         pip install geos
-        apt-get install proj-bin
+        pip install pyproj
         pip install matplotlib 
         pip install cartopy
         pip install requests
