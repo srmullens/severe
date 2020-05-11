@@ -16,7 +16,7 @@ jobs:
         python-version: 3.7
 
     - name: Import dependencies
-      run: pip install contextlib zipfile shutil numpy pandas geopandas shapely
+      run: pip install requests contextlib zipfile shutil numpy pandas geopandas shapely
 
     - name: Run code
       run: python when_model_updates.py
