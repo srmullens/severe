@@ -44,7 +44,7 @@ jobs:
       run: |
         pwd
         ls -la
-        ../
+        cd ../
         ls -la
 
     - name: Run code
