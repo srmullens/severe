@@ -28,9 +28,8 @@ jobs:
         activate-environment: foo
         python-version: 3.7
     - name: zsh shell
-      run: |
-        echo $ZSH_NAME $ZSH_VERSION
-      shell: zsh {0}
+      run: conda list
+      shell: bash
       
     - name: Install dependencies
       run: |
