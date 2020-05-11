@@ -18,19 +18,19 @@ jobs:
 
     - name: Update pip
       run: |
-        curl https://bootstrap.pypa.io/get-pip.py | python
-        pip install --upgrade setuptools
+        #curl https://bootstrap.pypa.io/get-pip.py | python
+        #pip install --upgrade setuptools
       
     - name: Import dependencies
       run: |
-        pip install contextlib 
-        pip install zipfile 
-        pip install shutil 
+        #pip install contextlib 
+        #pip install zipfile 
+        #pip install shutil 
         pip install numpy 
         pip install pandas 
-        pip install geopandas 
-        pip install shapely 
-        pip install requests
+        #pip install geopandas 
+        #pip install shapely 
+        #pip install requests
 
     - name: Run code
       run: python when_model_updates.py
