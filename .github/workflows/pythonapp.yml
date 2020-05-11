@@ -27,8 +27,8 @@ jobs:
         miniconda-version: latest
         activate-environment: foo
         python-version: 3.7
-    - name: Bash
-      shell: bash -l {0}
+    - name: Python
+      shell: python
       run: |
         conda info
         conda list
