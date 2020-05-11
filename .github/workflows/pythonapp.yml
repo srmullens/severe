@@ -28,7 +28,8 @@ jobs:
         #pip install shutil 
         pip install numpy 
         pip install pandas 
-        pip install geopandas 
+        pip install geopandas
+        pip install matplotlib 
         #pip install shapely 
         pip install requests
 
