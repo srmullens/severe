@@ -22,11 +22,13 @@ jobs:
         #pip install --upgrade setuptools
       
     - name: Install dependencies
-      run: pip install wheel numpy 
+      run: pip3 install wheel numpy geos
+    - name: Install libproj-dev
+      run: sudo apt-get install libproj-dev
     - name: Install shapely
-      run: pip install shapely --no-binary shapely
+      run: pip3 install shapely --no-binary shapely
     - name: Install rest of dependencies
-      run: pip install pandas geopandas requests geos pyshp matplotlib
+      run: pip3 install pandas geopandas requests pyshp matplotlib
     #- name: Install numpy
     #  run: pip install numpy
     #- name: Install pandas geopandas
@@ -39,12 +41,10 @@ jobs:
     #  run: pip install pyshp
     #- name: Install matplotlib
     #  run: pip install matplotlib
-    - name: Install libproj-dev
-      run: sudo apt-get install libproj-dev
     - name: List installed packages
-      run: pip list
+      run: pip3 list
     - name: Install cartopy 
-      run: pip install cartopy
+      run: pip3 install cartopy
 
     - name: Run code
       run: python grid_SPC_outlook.py
