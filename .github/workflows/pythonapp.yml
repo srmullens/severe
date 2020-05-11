@@ -16,8 +16,8 @@ jobs:
       with:
         python-version: 3.7
 
-    - name: Update pip
-      run: |
+    #- name: Update pip
+      #run: |
         #curl https://bootstrap.pypa.io/get-pip.py | python
         #pip install --upgrade setuptools
       
