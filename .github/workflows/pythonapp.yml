@@ -19,6 +19,7 @@ jobs:
 
     - name: Checkout
       uses: actions/checkout@v2
+      
     - name: Setup Miniconda
       uses: goanpeca/setup-miniconda@v1
       with:
@@ -31,25 +32,11 @@ jobs:
       run: |
         conda info
         conda list
-        
-    #- uses: actions/checkout@v2
-    #- name: Set up Python 3.7.7
-    #  uses: actions/setup-python@v2
-    #  with:
-    #    python-version: 3.7
       
     - name: Install dependencies
       run: |
         sudo apt-get install libproj-dev
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
-
-    #- name: List files 
-    #  run: |
-    #    pwd
-    #    ls -la
-    #    cd ../
-    #    pwd
-    #    ls -la
 
     - name: Run code
       run: python grid_SPC_outlook.py
