@@ -31,6 +31,8 @@ jobs:
       run: pip install requests
     - name: Install geos
       run: pip install geos
+    - name: Install pyshp
+      run: pip install pyshp
     - name: Install matplotlib
       run: pip install matplotlib
     - name: List installed packages
