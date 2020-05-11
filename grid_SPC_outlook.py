@@ -58,7 +58,12 @@ setting = 'low'
 #
 
 # Downloads a zip file and extracts it in a target directory of choice
-def download_zip_file(file_url: str, root_folder: str):
+def download_zip_file(file_url, root_folder):
+
+    if not isinstance(file_url,str):
+        raise TypeError(f'file URL must by type string, not {type(file_url)}')
+    if not isinstance(root_folder,str)
+        raise TypeError(f'folder must by type string, not {type(root_folder)}')
 
     file = file_url.split('/')[-1]
     folder = file.split('.')[0]
