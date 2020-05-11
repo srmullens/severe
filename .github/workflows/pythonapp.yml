@@ -22,13 +22,13 @@ jobs:
         #pip install --upgrade setuptools
       
     - name: Install dependencies
-      run: pip3 install wheel numpy geos
+      run: pip3 install wheel numpy geos pandas geopandas requests pyshp matplotlib
     - name: Install libproj-dev
       run: sudo apt-get install libproj-dev
     - name: Install shapely
-      run: pip3 install shapely --no-binary shapely
-    - name: Install rest of dependencies
-      run: pip3 install pandas geopandas requests pyshp matplotlib
+      run: |
+        pip3 uninstall shapely
+        pip3 install shapely --no-binary shapely
     #- name: Install numpy
     #  run: pip install numpy
     #- name: Install pandas geopandas
