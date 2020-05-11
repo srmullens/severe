@@ -22,7 +22,11 @@ jobs:
         #pip install --upgrade setuptools
       
     - name: Install dependencies
-      run: pip install wheel numpy pandas geopandas requests geos pyshp matplotlib
+      run: pip install wheel numpy 
+    - name: Install shapely
+      run: pip install shapely --no-binary shapely
+    - name: Install rest of dependencies
+      run: pip install pandas geopandas requests geos pyshp matplotlib
     #- name: Install numpy
     #  run: pip install numpy
     #- name: Install pandas geopandas
