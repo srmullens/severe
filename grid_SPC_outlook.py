@@ -74,7 +74,7 @@ def download_zip_file(file_url, root_folder):
             shutil.copyfileobj(r, f)
     """
 
-    with reqeusts.get(file_url) as r:
+    with requests.get(file_url) as r:
         with open(file, 'wb') as f:
             shutil.copyfileobj(r, f)
 
