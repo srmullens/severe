@@ -17,10 +17,8 @@ jobs:
     #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
     #    restore-keys: ${{ runner.os }}-pip-
 
-    - name: Checkout
-      uses: actions/checkout@v2
-      
     - name: Setup Miniconda
+      uses: actions/checkout@v2
       uses: goanpeca/setup-miniconda@v1
       with:
         auto-update-conda: true
@@ -32,8 +30,8 @@ jobs:
         conda env list
         conda env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";'
         #conda init bash
-        #conda activate test
-        #conda env list
+        conda activate -n test
+        conda env list
       #shell: bash
       
     - name: Install dependencies
