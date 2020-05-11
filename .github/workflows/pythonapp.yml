@@ -27,7 +27,6 @@ jobs:
         python-version: 3.7
     - name: Show conda list
       run: |
-        conda env list
         conda env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";'
         source /usr/share/miniconda3/etc/profile.d/conda.sh
         conda activate test
@@ -36,6 +35,8 @@ jobs:
       
     - name: Install dependencies
       run: |
+        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        conda activate test
         sudo apt-get install libproj-dev
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
         python -V
@@ -46,6 +47,8 @@ jobs:
       run: |
         python -V
         python3 -V
+        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        conda activate test
         python3 grid_SPC_outlook.py
 
     - name: Commit files
