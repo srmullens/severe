@@ -30,6 +30,7 @@ jobs:
         pip install pandas 
         pip install geopandas
         pip install matplotlib 
+        pip install cartopy
         #pip install shapely 
         pip install requests
 
