@@ -29,9 +29,6 @@ jobs:
         python-version: 3.7
     - name: Python
       shell: python
-      run: |
-        conda info
-        conda list
       
     - name: Install dependencies
       run: |
