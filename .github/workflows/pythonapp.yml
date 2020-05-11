@@ -25,7 +25,7 @@ jobs:
       with:
         auto-update-conda: true
         miniconda-version: latest
-        #activate-environment: foo
+        activate-environment: test
         python-version: 3.7
     - name: Show conda list
       run: conda env list
