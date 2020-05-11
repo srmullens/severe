@@ -29,7 +29,7 @@ jobs:
       run: |
         conda env list
         conda env list | grep -v "^$\|#" |awk '{print $1;}'|xargs -I{} -d "\n" sh -c 'printf "Env: {}\t"; conda list -n {} |grep "^python\s";'
-        source ~/anaconda3/etc/profile.d/conda.sh
+        source /usr/share/miniconda3/etc/profile.d/conda.sh
         conda activate my_env
         conda activate -n test
         conda env list
