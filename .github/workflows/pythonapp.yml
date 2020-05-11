@@ -33,7 +33,7 @@ jobs:
         #pip install requests
 
     - name: Run code
-      run: python when_model_updates.py
+      run: python grid_SPC_outlook.py
 
     - name: Commit files
       run: |
