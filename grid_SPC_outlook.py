@@ -40,6 +40,7 @@ from datetime import datetime as dt, timedelta
 from dateutil import tz
 from timezonefinder import TimezoneFinder
 
+from twython import Twython
 
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
 where='data'
@@ -49,7 +50,7 @@ plot_type_override = False
 plot_type = 'smooth'
 
 # What SPC day do you want to plot?
-plot_day = 5
+plot_day = 1
 
 # What resolution do you want? 'low', 'mid', 'high'
 setting = 'low'
@@ -264,37 +265,44 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     new_zones_list = []
 
     # Extract a list of coordinates from the polygon(s).
-    if polygon.geom_type == 'MultiPolygon':
-        multipolygon = polygon
-        coords = [point for polygon in multipolygon for point in polygon.exterior.coords[:-1]]
-    elif polygon.geom_type == 'Polygon':
-        coords = list(polygon.exterior.coords)
+    try:
+        if polygon.geom_type == 'MultiPolygon':
+            multipolygon = polygon
+            coords = [point for polygon in multipolygon for point in polygon.exterior.coords[:-1]]
+        elif polygon.geom_type == 'Polygon':
+            coords = list(polygon.exterior.coords)
+    except:
+        coords = None
 
-    for coord in coords:
-        new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
+    if coords is not None:
+        for coord in coords:
+            new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
 
-    # Sort the resulting list from west to east.
-    new_zones_list = list(set(new_zones_list))
+        # Sort the resulting list from west to east.
+        new_zones_list = list(set(new_zones_list))
 
-    # Standardize time zones
-    for i,item in enumerate(new_zones_list):
-        zone = f'{utc_time.astimezone(tz.gettz(item)):%Z}'
-        if zone in ['EST','EDT']:
-            new_zones_list[i] = 'America/New_York'
-        elif zone in ['CST','CDT']:
-            new_zones_list[i] = 'America/Chicago'
-        elif zone in ['MST','MDT']:
-            new_zones_list[i] = 'America/Denver'
-        elif zone in ['PST','PDT']:
-            new_zones_list[i] = 'America/Los_Angeles'
+        # Standardize time zones
+        for i,item in enumerate(new_zones_list):
+            zone = f'{utc_time.astimezone(tz.gettz(item)):%Z}'
+            if zone in ['EST','EDT']:
+                new_zones_list[i] = 'America/New_York'
+            elif zone in ['CST','CDT']:
+                new_zones_list[i] = 'America/Chicago'
+            elif zone in ['MST','MDT']:
+                new_zones_list[i] = 'America/Denver'
+            elif zone in ['PST','PDT']:
+                new_zones_list[i] = 'America/Los_Angeles'
 
-    # Sort the resulting list from west to east.
-    west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
-    new_zones_list = [nzl for _,nzl in sorted(zip(west_to_east,new_zones_list), key=lambda pair: pair[0])]
+        # Sort the resulting list from west to east.
+        west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
+        new_zones_list = [nzl for _,nzl in sorted(zip(west_to_east,new_zones_list), key=lambda pair: pair[0])]
 
-    # Use str time zone names to modify datetime objects
-    for i,item in enumerate(new_zones_list):
-        new_zones_list[i] = utc_time.astimezone(tz.gettz(item))
+        # Use str time zone names to modify datetime objects
+        for i,item in enumerate(new_zones_list):
+            new_zones_list[i] = utc_time.astimezone(tz.gettz(item))
+
+    else:
+        new_zones_list=[utc_time]
 
     # Generate string outputs
     if len(new_zones_list)==3:
@@ -353,23 +361,27 @@ def Great_Lakes():
 
 # Determine an ideal legend location.
 def legend_location(category):
+    print("--> Determining Legend Location")
 
     # Get items for slicing the array
     height,width = category.shape
-    dh = int(round(height*0.15,0))
-    dw = int(round(width*0.15,0))
+    dh = int(round(height*0.35,0))
+    dw = int(round(width*0.35,0))
+
+    #print(category[height-dh:height,width-dw:width])
 
     # What corner has the lowest category coverage?
-    lower_right = np.sum(category[height-dh:height,width-dw:width])
-    lower_left = np.sum(category[height-dh:height,0:dw])
-    upper_right = np.sum(category[0:dh,width-dw:width])
-    upper_left = np.sum(category[0:dh,0:dw])
+    lower_left = np.sum(category[height-dh:height,width-dw:width])
+    lower_right = np.sum(category[height-dh:height,0:dw])
+    upper_left = np.sum(category[0:dh,width-dw:width])
+    upper_right = np.sum(category[0:dh,0:dw])
 
     min_corner = min(lower_right,lower_left,upper_right,upper_left)
 
+    #print(lower_right,lower_left,upper_right,upper_left)
+
     # Set legend location to best corner.
-    if lower_right == 0: leg_loc = 4
-    elif min_corner == lower_right: leg_loc = 4
+    if min_corner == lower_right: leg_loc = 4
     elif min_corner == lower_left: leg_loc = 3
     elif min_corner == upper_right: leg_loc = 1
     elif min_corner == upper_left: leg_loc = 2
@@ -377,10 +389,24 @@ def legend_location(category):
     return leg_loc
 
 
+# Tweet the results.
+def tweet(text, image):
+    consumer_key = os.environ.get('consumer_key')
+    consumer_secret = os.environ.get('consumer_secret')
+    access_token = os.environ.get('access_token')
+    access_token_secret = os.environ.get('access_token_secret')
+
+    print('--> Tweeting...')
+    twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
+    response = twitter.upload_media(media=open(image, 'rb'))
+    twitter.update_status(status=text, media_ids=[response['media_id']])
+    print("  --> Tweeted.")
+
+
 
 
 # The main function to make the plots.
-def grid_SPC_outlook(where,plot_type,plot_day,setting):
+def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     #
     # STEP 1: Get the files
     #
@@ -696,7 +722,6 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     fig = plt.figure(1, figsize=(1024/48, 512/48))
     ax = plt.subplot(1, 1, 1, projection=map_crs)
 
-
     print("--> Plot SPC polygons")
 
     # Create colormap
@@ -754,7 +779,13 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     plt.legend(handles=legend_patches,**kwargs).set_zorder(7)
 
     # Plot the titles
-    plt.suptitle(f'SPC Day {plot_day} Severe Storm Outlook', fontsize=18, fontweight='bold', y=0.95)
+    mid = (fig.subplotpars.right + fig.subplotpars.left)/2
+    kwargs = {'fontsize':18,
+                'fontweight':'bold',
+                'x':mid,
+                'y':0.93
+            }
+    plt.suptitle(f'SPC Day {plot_day} Severe Storm Outlook', **kwargs)
     plt.title(f'{start_time} through {end_time}', fontsize=12, loc='center')
 
 
@@ -764,7 +795,7 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     else: att_x = 1-0.006; att_y = 0.01; att_ha='right'
 
     # Add attribution
-    text = '@srmullens'
+    text = '@SmoothedPC'
     kwargs = {'weight':'bold',
                     #'bbox':dict(boxstyle="round",ec='white',fc="white",alpha=0.75),
                     'va':'bottom',
@@ -792,7 +823,9 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     elif plot_type=='smooth':
         plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
-        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_smooth.png')
+        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_smooth.png')
+        utc_time = dt.strptime(cat_gdf['VALID'][0], '%Y%m%d%H%M').replace(tzinfo=from_zone)
+        tweet(f'SPC forecast for {utc:time:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
 
     # Clear figure.
     plt.clf()
@@ -811,9 +844,10 @@ if __name__ == "__main__":
     if time.hour in [1,12,13,16,20]: h1=1; h2=2
     elif time.hour in [17]: h1=2; h2=3
     elif time.hour in [7]: h1=2; h2=4
-    else: h1=4; h2=9
+    else: h1=1; h2=2
+    #else: h1=4; h2=9
 
     for plot_day in range(h1,h2):
         print(f"\n*** Day {plot_day} ***")
-        grid_SPC_outlook(where,plot_type,plot_day,setting)
+        grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting)
 
