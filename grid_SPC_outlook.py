@@ -680,9 +680,11 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     if plot_type=='exact':
         plt.savefig(f'spc/day{plot_day}_categorical.png', dpi=96, bbox_inches='tight')
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_day{plot_day}_categorical.png')
+        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_exact.png')
     elif plot_type=='smooth':
         plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
+        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_smooth.png')
 
     # Clear figure.
     plt.clf()
