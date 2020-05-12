@@ -696,16 +696,16 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     data_crs = ccrs.PlateCarree()
 
     # Get time data
-    start_time = cat_gdf['VALID'][0]
-    end_time = cat_gdf['EXPIRE'][0]
+    start_time_dt = cat_gdf['VALID'][0]
+    end_time_dt = cat_gdf['EXPIRE'][0]
 
     from_zone = tz.gettz('UTC')
     to_zone = tz.gettz('America/New_York')
 
     polygon = cat_gdf.iloc[-1]['geometry']
 
-    start_time = convert_datetime_from_spc_to_local(polygon,start_time,'start',from_zone,to_zone)
-    end_time = convert_datetime_from_spc_to_local(polygon,end_time,'end',from_zone,to_zone)
+    start_time = convert_datetime_from_spc_to_local(polygon,start_time_dt,'start',from_zone,to_zone)
+    end_time = convert_datetime_from_spc_to_local(polygon,end_time_dt,'end',from_zone,to_zone)
 
     # Generate legend patches
     legend_patches = []
@@ -817,18 +817,32 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     start_timer = dt.now()
 
     if plot_type=='exact':
+        # Save the figure.
         plt.savefig(f'spc/day{plot_day}_categorical.png', dpi=96, bbox_inches='tight')
+
+        # Copy file to places.
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_day{plot_day}_categorical.png')
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_exact.png')
+
     elif plot_type=='smooth':
+        # Save the figure.
         plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
+
+        # Copy file to places.
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_smooth.png')
-        utc_time = dt.strptime(cat_gdf['VALID'][0], '%Y%m%d%H%M').replace(tzinfo=from_zone)
-        tweet(f'SPC forecast for {utc_time:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
+
+        # If high risk, keep it!
+        if len(cat_gdf)==6:
+            shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_high.png')
+
+        # Tweet the result.
+        tweet(f'SPC forecast for {utc_time_dt:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
+
 
     # Clear figure.
     plt.clf()
+
 
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
@@ -838,6 +852,11 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     big_time_elapsed = dt.now() - big_start_timer
     tsec = round(big_time_elapsed.total_seconds(),2)
     print(f"\n--> Done ({tsec:.2f} seconds)")
+
+
+
+
+
 
 if __name__ == "__main__":
     time = dt.utcnow()
