@@ -10,8 +10,7 @@
 #   and at .ipynb_checkpoints/download_shapes-checkpoint.ipynb #
 ################################################################
 
-import urllib.request as request
-#import requests
+import requests
 from contextlib import closing
 import zipfile
 import os
@@ -39,12 +38,14 @@ GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
 from datetime import datetime as dt, timedelta
 from dateutil import tz
+from timezonefinder import TimezoneFinder
 
 
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
 where='data'
 
 # What type of plot: 'exact' or 'smooth'
+plot_type_override = False
 plot_type = 'smooth'
 
 # What SPC day do you want to plot?
@@ -61,23 +62,18 @@ setting = 'low'
 def download_zip_file(file_url, root_folder):
 
     if not isinstance(file_url,str):
-        raise TypeError(f"file URL must by type string, not {type(file_url)}")
+        raise TypeError(f'file URL must by type string, not {type(file_url)}')
     if not isinstance(root_folder,str):
-        raise TypeError(f"folder must by type string, not {type(root_folder)}")
+        raise TypeError(f'folder must by type string, not {type(root_folder)}')
 
     file = file_url.split('/')[-1]
     folder = file.split('.')[0]
 
-    
-    with closing(request.urlopen(file_url)) as r:
+    with requests.get(file_url, stream=True) as r:
         with open(file, 'wb') as f:
-            shutil.copyfileobj(r, f)
-            
-    """
-    with requests.get(file_url) as r:
-        with open(file, 'wb') as f:
-            shutil.copyfileobj(r, f)
-    """
+            for chunk in r.iter_content(chunk_size=128):
+                f.write(chunk)
+
 
     with zipfile.ZipFile(file, "r") as zip_ref:
         zip_ref.extractall(f"{root_folder}/{folder}")
@@ -260,19 +256,88 @@ def get_average_values(x,y,data,mask,grids):
 
 
 # Convert time zones for printing
-def convert_datetime_from_spc_to_local(string,start_end,from_zone,to_zone):
+def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zone='America/New_York'):
     utc_time = dt.strptime(string, '%Y%m%d%H%M').replace(tzinfo=from_zone)
-    eastern = utc_time.astimezone(to_zone)
-    if start_end=='start':
-        date_time = dt.strftime(eastern, '%a, %b %d, %Y %I:%M %p').lstrip('0').replace(' 0', ' ')
-    elif start_end=='end':
-        date_time = dt.strftime(eastern, '%I:%M %p').lstrip('0').replace(' 0', ' ')
+
+    # Set up getting the time zone.
+    tf = TimezoneFinder()
+    new_zones_list = []
+
+    # Extract a list of coordinates from the polygon(s).
+    if polygon.geom_type == 'MultiPolygon':
+        multipolygon = polygon
+        coords = [point for polygon in multipolygon for point in polygon.exterior.coords[:-1]]
+    elif polygon.geom_type == 'Polygon':
+        coords = list(polygon.exterior.coords)
+
+    for coord in coords:
+        new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
+
+    # Sort the resulting list from west to east.
+    new_zones_list = list(set(new_zones_list))
+
+    # Standardize time zones
+    for i,item in enumerate(new_zones_list):
+        zone = f'{utc_time.astimezone(tz.gettz(item)):%Z}'
+        if zone in ['EST','EDT']:
+            new_zones_list[i] = 'America/New_York'
+        elif zone in ['CST','CDT']:
+            new_zones_list[i] = 'America/Chicago'
+        elif zone in ['MST','MDT']:
+            new_zones_list[i] = 'America/Denver'
+        elif zone in ['PST','PDT']:
+            new_zones_list[i] = 'America/Los_Angeles'
+
+    # Sort the resulting list from west to east.
+    west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
+    new_zones_list = [nzl for _,nzl in sorted(zip(west_to_east,new_zones_list), key=lambda pair: pair[0])]
+
+    # Use str time zone names to modify datetime objects
+    for i,item in enumerate(new_zones_list):
+        new_zones_list[i] = utc_time.astimezone(tz.gettz(item))
+
+    # Generate string outputs
+    if len(new_zones_list)==3:
+        if start_end=='start':
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[2]:%I:%M %Z %p}'
+        elif start_end=='end':
+            date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[2]:%I:%M %Z %p}'
+    elif len(new_zones_list)==2:
+        if start_end=='start':
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}/{new_zones_list[1]:%I:%M %Z %p}'
+        elif start_end=='end':
+            date_time = f'{new_zones_list[0]:%I:%M %Z}/{new_zones_list[1]:%I:%M %Z %p}'
+
+    elif len(new_zones_list)==1:
+        if start_end=='start':
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %p}'
+        elif start_end=='end':
+            date_time = f'{new_zones_list[0]:%I:%M %p %Z}'
+
+    print(f'  --> {start_end}: {date_time}')
+
     return date_time
 
 
-# Get the Great Lakes for the map.
+# Get the country outlines of Mexico and Canada for the map.
+def Mexico_Canada():
+    shpfilename = shpreader.natural_earth(resolution='50m',
+                                    category='cultural',
+                                    name='admin_0_countries')
+    reader = shpreader.Reader(shpfilename)
+    countries = list(reader.records())
+
+    country_list = ['Mexico','Canada']
+
+    MC = [country for country in countries if country.attributes['NAME_EN'] in country_list]
+    Mex_Can = [mc.geometry for mc in MC]
+
+    return Mex_Can
+
+
+# Get the outlines of the Great Lakes for the map.
 def Great_Lakes():
-    shpfilename = shpreader.natural_earth(resolution='10m',
+    shpfilename = shpreader.natural_earth(resolution='50m',
                                       category='physical',
                                       name='lakes')
     reader = shpreader.Reader(shpfilename)
@@ -284,6 +349,32 @@ def Great_Lakes():
     lakes = [gl.geometry for gl in GL]
 
     return lakes
+
+
+# Determine an ideal legend location.
+def legend_location(category):
+
+    # Get items for slicing the array
+    height,width = category.shape
+    dh = int(round(height*0.15,0))
+    dw = int(round(width*0.15,0))
+
+    # What corner has the lowest category coverage?
+    lower_right = np.sum(category[height-dh:height,width-dw:width])
+    lower_left = np.sum(category[height-dh:height,0:dw])
+    upper_right = np.sum(category[0:dh,width-dw:width])
+    upper_left = np.sum(category[0:dh,0:dw])
+
+    min_corner = min(lower_right,lower_left,upper_right,upper_left)
+
+    # Set legend location to best corner.
+    if lower_right == 0: leg_loc = 4
+    elif min_corner == lower_right: leg_loc = 4
+    elif min_corner == lower_left: leg_loc = 3
+    elif min_corner == upper_right: leg_loc = 1
+    elif min_corner == upper_left: leg_loc = 2
+
+    return leg_loc
 
 
 
@@ -361,11 +452,12 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
 
     # Plot low categories as exact polygons,
     #   regardless of the original setting.
-    if plot_day<4 and cat_gdf.iloc[2:5].empty:
-        plot_type = 'exact'
-    elif plot_nothing:
-        plot_type = 'exact'
-    else: plot_type = 'smooth'
+    if plot_type_override==False:
+        if plot_day<4 and cat_gdf.iloc[2:5].empty:
+            plot_type = 'exact'
+        elif plot_nothing:
+            plot_type = 'exact'
+        else: plot_type = 'smooth'
 
 
     time_elapsed = dt.now() - start_timer
@@ -434,14 +526,14 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
             clon = (extent[0]+extent[1])/2
             clat = (extent[2]+extent[3])/2
             map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
-            leg_loc = 4
+            leg_loc = 0
         elif len(extents)==1:
             # Plot extent of only category.
             extent = extents[0]
             clon = (extent[0]+extent[1])/2
             clat = (extent[2]+extent[3])/2
             map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
-            leg_loc = 4
+            leg_loc = 0
         else:
             # Plot CONUS with no categories.
             extent = [-125,-66,24,50]
@@ -561,6 +653,9 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
         # Smooth the categories.
         category = get_average_values(x,y,category,US_mask,grids)
 
+        if where=='data':
+            leg_loc = legend_location(category)
+
         # Mask the smoothed data by what's on land.
         #category = np.ma.masked_where(US_mask==False, category)
 
@@ -581,8 +676,10 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     from_zone = tz.gettz('UTC')
     to_zone = tz.gettz('America/New_York')
 
-    start_time = convert_datetime_from_spc_to_local(start_time,'start',from_zone,to_zone)
-    end_time = convert_datetime_from_spc_to_local(end_time,'end',from_zone,to_zone)
+    polygon = cat_gdf.iloc[-1]['geometry']
+
+    start_time = convert_datetime_from_spc_to_local(polygon,start_time,'start',from_zone,to_zone)
+    end_time = convert_datetime_from_spc_to_local(polygon,end_time,'end',from_zone,to_zone)
 
     # Generate legend patches
     legend_patches = []
@@ -639,10 +736,15 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     ax.add_feature(cfeature.COASTLINE.with_scale('50m'))
     ax.add_feature(cfeature.STATES.with_scale('50m'))
 
+    # Add Mexico and Canada to mask output in those areas.
+    mexico_canada = Mexico_Canada()
+    for country in mexico_canada:
+        ax.add_geometries( [country], crs=data_crs, facecolor='w', edgecolor='k')
+
     # Add Great Lakes
     great_lakes = Great_Lakes()
     for lake in great_lakes:
-        ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'] )
+        ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'], edgecolor='k' )
 
     print("--> Legend, Title")
     # Plot the legend
@@ -654,6 +756,12 @@ def grid_SPC_outlook(where,plot_type,plot_day,setting):
     # Plot the titles
     plt.suptitle(f'SPC Day {plot_day} Severe Storm Outlook', fontsize=18, fontweight='bold', y=0.95)
     plt.title(f'{start_time} through {end_time}', fontsize=12, loc='center')
+
+
+    # Put attribution text in opposite corner as the legend.
+    if leg_loc==4:
+        att_x = 0.006; att_y = 0.01; att_ha='left'
+    else: att_x = 1-0.006; att_y = 0.01; att_ha='right'
 
     # Add attribution
     text = '@srmullens'
