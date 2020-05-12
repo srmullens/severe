@@ -47,6 +47,11 @@ jobs:
 
     - name: Run code
       shell: bash
+      env:
+        consumer_key: ${{ secrets.TWITTER_API_KEY }}
+        consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
+        access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+        access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
       run: |
         # Change source to use conda commands
         source /usr/share/miniconda3/etc/profile.d/conda.sh
