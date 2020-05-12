@@ -40,8 +40,10 @@ jobs:
         conda activate test
         # This needs to be installed via apt-get...
         sudo apt-get install libproj-dev
-        # ... but everything else can come via conda-forge.
+        # ... but most everything else can come via conda-forge.
         conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy
+        # One more.
+        pip install timezonefinder
 
     - name: Run code
       shell: bash
