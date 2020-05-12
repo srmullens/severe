@@ -825,7 +825,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_smooth.png')
         utc_time = dt.strptime(cat_gdf['VALID'][0], '%Y%m%d%H%M').replace(tzinfo=from_zone)
-        tweet(f'SPC forecast for {utc:time:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
+        tweet(f'SPC forecast for {utc_time:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
 
     # Clear figure.
     plt.clf()
@@ -844,8 +844,7 @@ if __name__ == "__main__":
     if time.hour in [1,12,13,16,20]: h1=1; h2=2
     elif time.hour in [17]: h1=2; h2=3
     elif time.hour in [7]: h1=2; h2=4
-    else: h1=1; h2=2
-    #else: h1=4; h2=9
+    else: h1=4; h2=9
 
     for plot_day in range(h1,h2):
         print(f"\n*** Day {plot_day} ***")
