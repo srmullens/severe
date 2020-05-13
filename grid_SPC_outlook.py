@@ -306,22 +306,29 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     else:
         new_zones_list=[utc_time]
 
+    print(f'  --> {len(new_zones_list)})
+        
     # Generate string outputs
-    if len(new_zones_list)==3:
+    if len(new_zones_list)>=3:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[2]:%I:%M %Z %p}'
+            print('  --> 3s')
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[-1]:%I:%M %Z %p}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[2]:%I:%M %Z %p}'
+            print('  --> 3e')
+            date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[-1]:%I:%M %Z %p}'
     elif len(new_zones_list)==2:
         if start_end=='start':
+            print('  --> 2s')
             date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}/{new_zones_list[1]:%I:%M %Z %p}'
         elif start_end=='end':
+            print('  --> 2e')
             date_time = f'{new_zones_list[0]:%I:%M %Z}/{new_zones_list[1]:%I:%M %Z %p}'
-
     elif len(new_zones_list)==1:
         if start_end=='start':
+            print('  --> 1s')
             date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %p}'
         elif start_end=='end':
+            print('  --> 1e')
             date_time = f'{new_zones_list[0]:%I:%M %p %Z}'
 
     print(f'  --> {start_end}: {date_time}')
