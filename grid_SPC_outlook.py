@@ -701,7 +701,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     start_time = cat_gdf['VALID'][0]
     end_time = cat_gdf['EXPIRE'][0]
 
-    start_time_dt = dt.strptime(string, '%Y%m%d%H%M')
+    start_time_dt = dt.strptime(start_time, '%Y%m%d%H%M')
 
     from_zone = tz.gettz('UTC')
     to_zone = tz.gettz('America/New_York')
