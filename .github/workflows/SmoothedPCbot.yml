@@ -1,10 +1,9 @@
 name: Gridded SPC Outlooks
 
 on:
-  push
-  #schedule:
-  #  - cron: '10 1,6,9,12,13,20 * * *'
-  #  - cron: '40 7,16,17 * * *'
+  schedule:
+    - cron: '10 1,6,9,12,13,20 * * *'
+    - cron: '40 7,16,17 * * *'
 
 jobs:
   build:
@@ -13,11 +12,11 @@ jobs:
     
     # This should cash the environment so we don't 
     # have to spend 3 minutes building a new one each time.
-    - uses: actions/cache@v1
-      with:
-        path: ~/.cash/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: ${{ runner.os }}-pip-
+    #- uses: actions/cache@v1
+    #  with:
+    #    path: ~/.cash/pip
+    #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+    #    restore-keys: ${{ runner.os }}-pip-
 
     # Checkout allows us to use the files in this repository.
     - uses: actions/checkout@v2
