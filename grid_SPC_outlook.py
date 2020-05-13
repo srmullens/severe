@@ -815,35 +815,42 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     # Save
     print("--> Save")
     start_timer = dt.now()
-
+    print("  --> IFs")
     if plot_type=='exact':
         # Save the figure.
+        print("  --> Exact. Savefig")
         plt.savefig(f'spc/day{plot_day}_categorical.png', dpi=96, bbox_inches='tight')
 
         # Copy file to places.
+        print("  --> Exact. Copy 1")
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_day{plot_day}_categorical.png')
+        print("  --> Exact. Copy 2")
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_exact.png')
-
+        print("  --> Exact. Done copying")
     elif plot_type=='smooth':
         # Save the figure.
+        print("  --> Smooth. Savefig")
         plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
 
         # Copy file to places.
+        print("  --> Smooth. Copy 1")
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
+        print("  --> Smooth. Copy 2")
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_smooth.png')
-
+        print("  --> Smooth. Done copying. If HIGH.")
         # If high risk, keep it!
         if len(cat_gdf)==6:
+            print("  --> Smooth. HIGH! Copy.")
             shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_high.png')
-
+        print("  --> Smooth. Tweet.")
         # Tweet the result.
         tweet(f'SPC forecast for {utc_time_dt:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
-
-
+        print("  --> Smooth. Tweeted.")
+    print("  --> Done IFs. clf()")
     # Clear figure.
     plt.clf()
 
-
+    print("  --> Done clf. Time elapsed.")
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
     print(f"--> Saved ({tsec:.2f} seconds)")
