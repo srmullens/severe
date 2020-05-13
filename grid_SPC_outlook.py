@@ -306,7 +306,7 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     else:
         new_zones_list=[utc_time]
 
-    print(f'  --> {len(new_zones_list)})
+    print(f'  --> {len(new_zones_list)}')
         
     # Generate string outputs
     if len(new_zones_list)>=3:
