@@ -400,9 +400,7 @@ def tweet(text, image):
 
     print('--> Tweeting...')
     twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
-    print('  --> Keys given');print(twitter)
     response = twitter.upload_media(media=open(image, 'rb'))
-    print('  --> Upload media');print(response)
     twitter.update_status(status=text, media_ids=[response['media_id']])
     print("  --> Tweeted.")
 
@@ -700,16 +698,18 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     data_crs = ccrs.PlateCarree()
 
     # Get time data
-    start_time_dt = cat_gdf['VALID'][0]
-    end_time_dt = cat_gdf['EXPIRE'][0]
+    start_time = cat_gdf['VALID'][0]
+    end_time = cat_gdf['EXPIRE'][0]
+
+    start_time_dt = dt.strptime(string, '%Y%m%d%H%M')
 
     from_zone = tz.gettz('UTC')
     to_zone = tz.gettz('America/New_York')
 
     polygon = cat_gdf.iloc[-1]['geometry']
 
-    start_time = convert_datetime_from_spc_to_local(polygon,start_time_dt,'start',from_zone,to_zone)
-    end_time = convert_datetime_from_spc_to_local(polygon,end_time_dt,'end',from_zone,to_zone)
+    start_time = convert_datetime_from_spc_to_local(polygon,start_time,'start',from_zone,to_zone)
+    end_time = convert_datetime_from_spc_to_local(polygon,end_time,'end',from_zone,to_zone)
 
     # Generate legend patches
     legend_patches = []
@@ -819,42 +819,36 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     # Save
     print("--> Save")
     start_timer = dt.now()
-    print("  --> IFs")
+
     if plot_type=='exact':
         # Save the figure.
-        print("  --> Exact. Savefig")
         plt.savefig(f'spc/day{plot_day}_categorical.png', dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        print("  --> Exact. Copy 1")
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_day{plot_day}_categorical.png')
-        print("  --> Exact. Copy 2")
         shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_exact.png')
-        print("  --> Exact. Done copying")
+
     elif plot_type=='smooth':
         # Save the figure.
-        print("  --> Smooth. Savefig")
         plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        print("  --> Smooth. Copy 1")
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
-        print("  --> Smooth. Copy 2")
         shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_smooth.png')
-        print("  --> Smooth. Done copying. If HIGH.")
+
         # If high risk, keep it!
         if len(cat_gdf)==6:
-            print("  --> Smooth. HIGH! Copy.")
             shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_high.png')
-        print("  --> Smooth. Tweet.")
+
         # Tweet the result.
+        print("  --> Smooth. Tweet.")
         tweet(f'SPC forecast for {start_time_dt:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
         print("  --> Smooth. Tweeted.")
-    print("  --> Done IFs. clf()")
+
     # Clear figure.
     plt.clf()
 
-    print("  --> Done clf. Time elapsed.")
+
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
     print(f"--> Saved ({tsec:.2f} seconds)")
