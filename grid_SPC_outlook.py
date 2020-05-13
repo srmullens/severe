@@ -400,7 +400,9 @@ def tweet(text, image):
 
     print('--> Tweeting...')
     twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
+    print('  --> Keys given');print(twitter)
     response = twitter.upload_media(media=open(image, 'rb'))
+    print('  --> Upload media');print(response)
     twitter.update_status(status=text, media_ids=[response['media_id']])
     print("  --> Tweeted.")
 
