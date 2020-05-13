@@ -842,7 +842,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
         # Tweet the result.
         print("  --> Smooth. Tweet.")
-        tweet(f'SPC forecast for {start_time_dt:%A}. A "day {plot_day}" forecast.', 'spc/day{plot_day}_grid_categorical.png')
+        tweet(f'SPC forecast for {start_time_dt:%A}. A "day {plot_day}" forecast.', f'spc/day{plot_day}_grid_categorical.png')
         print("  --> Smooth. Tweeted.")
 
     # Clear figure.
