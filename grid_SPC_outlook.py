@@ -306,29 +306,23 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     else:
         new_zones_list=[utc_time]
 
-    print(f'  --> {len(new_zones_list)}')
-        
     # Generate string outputs
     if len(new_zones_list)>=3:
         if start_end=='start':
-            print('  --> 3s')
             date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[-1]:%I:%M %Z %p}'
         elif start_end=='end':
-            print('  --> 3e')
             date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[-1]:%I:%M %Z %p}'
+
     elif len(new_zones_list)==2:
         if start_end=='start':
-            print('  --> 2s')
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}/{new_zones_list[1]:%I:%M %Z %p}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[1]:%I:%M %Z %p}'
         elif start_end=='end':
-            print('  --> 2e')
-            date_time = f'{new_zones_list[0]:%I:%M %Z}/{new_zones_list[1]:%I:%M %Z %p}'
+            date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[1]:%I:%M %Z %p}'
+
     elif len(new_zones_list)==1:
         if start_end=='start':
-            print('  --> 1s')
             date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %p}'
         elif start_end=='end':
-            print('  --> 1e')
             date_time = f'{new_zones_list[0]:%I:%M %p %Z}'
 
     print(f'  --> {start_end}: {date_time}')
@@ -374,16 +368,16 @@ def legend_location(category):
 
     # Get items for slicing the array
     height,width = category.shape
-    dh = int(round(height*0.35,0))
-    dw = int(round(width*0.35,0))
+    dh = int(round(height*0.25,0))
+    dw = int(round(width*0.25,0))
 
     #print(category[height-dh:height,width-dw:width])
 
     # What corner has the lowest category coverage?
-    lower_left = np.sum(category[height-dh:height,width-dw:width])
-    lower_right = np.sum(category[height-dh:height,0:dw])
-    upper_left = np.sum(category[0:dh,width-dw:width])
-    upper_right = np.sum(category[0:dh,0:dw])
+    upper_right = np.sum(category[height-dh:height,width-dw:width])
+    upper_left = np.sum(category[height-dh:height,0:dw])
+    lower_right = np.sum(category[0:dh,width-dw:width])
+    lower_left = np.sum(category[0:dh,0:dw])
 
     min_corner = min(lower_right,lower_left,upper_right,upper_left)
 
@@ -606,6 +600,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
             y, x = grid_points = np.mgrid[24:50:261j, -125:-66:591j]
             US_mask_count = 83477       # 54.11%
             grid_size = 154251
+
 
         #
         # Get the US's shape from natural_earth's countries.
@@ -875,7 +870,6 @@ if __name__ == "__main__":
     if time.hour in [1,12,13,16,20]: h1=1; h2=2
     elif time.hour in [17]: h1=2; h2=3
     elif time.hour in [7]: h1=2; h2=4
-    #else: h1=1; h2=2
     else: h1=4; h2=9
 
     for plot_day in range(h1,h2):
