@@ -123,7 +123,7 @@ def dist_in_grids(x,y,data,extent):
     dx = round(degrees(dlon) / resolution * 10,0)
     grids = max(dx,dy)
     print(f'  --> Res: {resolution}')
-    print(f'  --> Grids: {int(grids)} ({int(dx)} vs {int(dy)})')
+    print(f'  --> Grids in 25mi: {int(grids)} ({int(dx)} vs {int(dy)})')
 
     return grids
 
@@ -371,24 +371,44 @@ def legend_location(category):
     dh = int(round(height*0.25,0))
     dw = int(round(width*0.25,0))
 
-    #print(category[height-dh:height,width-dw:width])
+    # Max category within the slice.
+    upper_right_max = np.amax(category[height-dh:height,width-dw:width])
+    upper_left_max = np.amax(category[height-dh:height,0:dw])
+    lower_right_max = np.amax(category[0:dh,width-dw:width])
+    lower_left_max = np.amax(category[0:dh,0:dw])
+    max_corners = [lower_right_max,lower_left_max,upper_right_max,upper_left_max]
 
-    # What corner has the lowest category coverage?
-    upper_right = np.sum(category[height-dh:height,width-dw:width])
-    upper_left = np.sum(category[height-dh:height,0:dw])
-    lower_right = np.sum(category[0:dh,width-dw:width])
-    lower_left = np.sum(category[0:dh,0:dw])
+    # Sum of category values across the slice.
+    upper_right_sum = np.sum(category[height-dh:height,width-dw:width])
+    upper_left_sum = np.sum(category[height-dh:height,0:dw])
+    lower_right_sum = np.sum(category[0:dh,width-dw:width])
+    lower_left_sum = np.sum(category[0:dh,0:dw])
+    sum_corners = [lower_right_sum,lower_left_sum,upper_right_sum,upper_left_sum]
 
-    min_corner = min(lower_right,lower_left,upper_right,upper_left)
+    # List of legend locations corresponding to the corners in max_corners and sum_corners.
+    corners = [4,3,1,2]
 
-    #print(lower_right,lower_left,upper_right,upper_left)
+    # Sort legend locations by max category at any pixel. Lowest to highest.
+    #   Do the same with sum_corners.
+    corners_sort_by_low_max = [c for _,c in sorted(zip(max_corners,corners), key=lambda pair: pair[0])]
+    sum_corners = [c for _,c in sorted(zip(max_corners,sum_corners), key=lambda pair: pair[0])]
 
+    # Trim lists to locations with equivalently lowest max category at each pixel.
+    #   Maybe there are two corners that max out at the second category.
+    corners_sort_by_low_max = corners_sort_by_low_max[:max_corners.count(max_corners[0])]
+    sum_corners = sum_corners[:max_corners.count(max_corners[0])]
+
+    # Sort remaining corner locations by sum of categories across all pixels.
+    leg_loc = [ll for _,ll in sorted(zip(sum_corners,corners_sort_by_low_max), key=lambda pair: pair[0])][0]
+
+    print(f' --> Legend location: {leg_loc}')
+    """
     # Set legend location to best corner.
     if min_corner == lower_right: leg_loc = 4
     elif min_corner == lower_left: leg_loc = 3
     elif min_corner == upper_right: leg_loc = 1
     elif min_corner == upper_left: leg_loc = 2
-
+    """
     return leg_loc
 
 
@@ -735,7 +755,9 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     n_bin = 100
     cm = LinearSegmentedColormap.from_list(cmap_name, cat_fill_colors, N=n_bin)
 
-    # Plot the categories
+    ########################
+    # Plot the categories! #
+    ########################
     if plot_type=='smooth':
         kwargs = {'cmap':cm,
                     'vmin':0,
@@ -780,7 +802,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     print("--> Legend, Title")
     # Plot the legend
     kwargs = {'loc':leg_loc,
-                'fontsize':'medium'
+                'fontsize':'medium',
+                'framealpha':0.9
              }
     plt.legend(handles=legend_patches,**kwargs).set_zorder(7)
 
