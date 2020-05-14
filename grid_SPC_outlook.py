@@ -890,7 +890,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
 if __name__ == "__main__":
     time = dt.utcnow()
-    if time.hour in [1,12,13,16,20]: h1=1; h2=2
+    if time.hour in [1,6,12,13,16,20]: h1=1; h2=2
     elif time.hour in [17]: h1=2; h2=3
     elif time.hour in [7]: h1=2; h2=4
     else: h1=4; h2=9
