@@ -21,7 +21,7 @@ jobs:
     - name: Run code
       shell: bash
       run: |
-        {{RESULT}} = `python3 test.py`
+        ${{RESULT}} = `python3 test.py`
       continue-on-error: True
 
     - name: Wait? 
