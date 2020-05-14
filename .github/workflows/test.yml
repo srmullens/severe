@@ -1,4 +1,4 @@
-name: Gridded SPC Outlooks
+name: Test cache and output
 
 on: push
 
@@ -20,7 +20,8 @@ jobs:
     
     - name: Run code
       shell: bash
-      run: {{RESULT}} = python3 test.py
+      run: |
+        {{RESULT}} = `python3 test.py`
       continue-on-error: True
 
     - name: Wait? 
