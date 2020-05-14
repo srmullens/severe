@@ -17,19 +17,21 @@ jobs:
         
     # Checkout allows us to use the files in this repository.
     - uses: actions/checkout@v2
-    
+      env:
+        RESULT: 0
+
     - name: Run code
       shell: bash
       run: |
-        ${{RESULT}} = `python3 test.py`
+        ${{ RESULT }} = `python3 test.py`
       continue-on-error: True
 
     - name: Wait? 
-      if: ${{RESULT}} == False
+      if: ${{ RESULT }} == False
       uses: jakejarvis/wait-action@master
       with:
         time: '5s'
 
     - name: Try again.
-      if: ${{RESULT}} == False
+      if: ${{ RESULT }} == False
       run: python3 test.py
