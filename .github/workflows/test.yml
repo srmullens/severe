@@ -23,15 +23,15 @@ jobs:
     - name: Run code
       shell: bash
       run: |
-        ${{ RESULT }} = `python3 test.py`
+        ${{ env.RESULT }} = `python3 test.py`
       continue-on-error: True
 
     - name: Wait? 
-      if: ${{ RESULT }} == False
+      if: ${{ env.RESULT }} == False
       uses: jakejarvis/wait-action@master
       with:
         time: '5s'
 
     - name: Try again.
-      if: ${{ RESULT }} == False
+      if: ${{ env.RESULT }} == False
       run: python3 test.py
