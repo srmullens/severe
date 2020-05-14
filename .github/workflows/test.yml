@@ -12,7 +12,7 @@ jobs:
     - uses: actions/cache@v1
       with:
         path: ~/.cash/pip
-        #key: ${{ runner.os }}-pip-
+        key: ${{ runner.os }}-pip-
         restore-keys: ${{ runner.os }}-pip-
         
     # Checkout allows us to use the files in this repository.
