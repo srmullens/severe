@@ -1,6 +1,6 @@
 name: Test cache and output
 
-#on: push
+on: push
 
 jobs:
   build:
