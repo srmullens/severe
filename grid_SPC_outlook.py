@@ -869,20 +869,20 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
         plt.savefig(f'spc/day{plot_day}_categorical.png', dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_day{plot_day}_categorical.png')
-        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'latest_exact.png')
+        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'spc/latest_day{plot_day}_categorical.png')
+        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'spc/latest_exact.png')
 
     elif plot_type=='smooth':
         # Save the figure.
         plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_day{plot_day}_categorical.png')
-        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_smooth.png')
+        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_day{plot_day}_categorical.png')
+        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_smooth.png')
 
         # If high risk, keep it!
         if len(cat_gdf)==6:
-            shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'latest_high.png')
+            shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_high.png')
 
         # Tweet the result.
         print("  --> Smooth. Tweet.")
