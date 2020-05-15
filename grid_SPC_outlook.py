@@ -891,8 +891,12 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
         # Tweet the result.
         print("  --> Smooth. Tweet.")
+        US_time_dt = start_time_dt.astimezone(tz.gettz('America/New_York'))
         if plot_day==1:
-            tweet(f'SPC forecast for TODAY, {start_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+            if start_time_dt.strftime(%-H)=='1':
+                tweet(f'SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+            else: 
+                tweet(f'SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
         elif plot_day==2:
             tweet(f'SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
         else:
