@@ -498,8 +498,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     if plot_day<4:
         while tries<30:
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
-            if dt.strptime(cat_gdf['VALID'][0],'%Y%m%d%H%M').strftime('%H') != dt.utcnow().strftime('%H'):
-                print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC vs {dt.strptime(cat_gdf['VALID'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+            if dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H') != dt.utcnow().strftime('%H'):
+                print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC vs {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.')
                 else:
                     t.sleep(30)
