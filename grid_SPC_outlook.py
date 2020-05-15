@@ -38,6 +38,7 @@ GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
 from datetime import datetime as dt, timedelta
 from dateutil import tz
+import time
 from timezonefinder import TimezoneFinder
 
 from twython import Twython
@@ -498,9 +499,11 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
         while tries<30:
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
             if dt.strptime(cat_gdf['VALID'][0],'%Y%m%d%H%M').strftime('%H') != dt.utcnow().strftime('%H'):
-                print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
-                time.sleep(30)
-                tries += 1
+                print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC vs {dt.strptime(cat_gdf['VALID'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.')
+                else:
+                    time.sleep(30)
+                    tries += 1
             else:
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC")
                 tries+=30
@@ -512,8 +515,10 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 tries+=30
             except:
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
-                time.sleep(30)
-                tries+=1
+                if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.')
+                else:
+                    time.sleep(30)
+                    tries+=1
 
     # If there is no polygon, plot_nothing=True
     plot_nothing = len(cat_gdf)==1 and cat_gdf.loc[0].geometry is None
