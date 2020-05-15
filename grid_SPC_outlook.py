@@ -308,27 +308,32 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
         new_zones_list=[utc_time]
 
     # Generate string outputs
+    tweet_valid_time = ' '
     if len(new_zones_list)>=3:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[-1]:%I:%M %Z %p}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            tweet_valid_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[-1]:%I:%M %Z %p}'
+            date_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
 
     elif len(new_zones_list)==2:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %Z}-{new_zones_list[1]:%I:%M %Z %p}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            tweet_valid_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M %Z}-{new_zones_list[1]:%I:%M %Z %p}'
+            date_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
 
     elif len(new_zones_list)==1:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M %p}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M}{new_zones_list[0].strftime("%p").lower()}'
+            tweet_valid_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M %p %Z}'
+            date_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
 
     print(f'  --> {start_end}: {date_time}')
+    print(f'  --> {tweet_valid_time}')
 
-    return date_time
+    return date_time, tweet_valid_time
 
 
 # Get the country outlines of Mexico and Canada for the map.
@@ -498,7 +503,10 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     if plot_day<4:
         while tries<30:
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
-            if dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H') != dt.utcnow().strftime('%H'):
+            time_since_issued = dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')-dt.utcnow()
+            time_since_issued = time_since_issued.total_seconds()
+
+            if time_since_issued < 3600: #1800: # 30 minutes
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC vs {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.')
                 else:
@@ -517,7 +525,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
                 if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.')
                 else:
-                    tf.sleep(30)
+                    t.sleep(30)
                     tries+=1
 
     # If there is no polygon, plot_nothing=True
@@ -754,8 +762,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
     polygon = cat_gdf.iloc[-1]['geometry']
 
-    start_time = convert_datetime_from_spc_to_local(polygon,start_time,'start',from_zone,to_zone)
-    end_time = convert_datetime_from_spc_to_local(polygon,end_time,'end',from_zone,to_zone)
+    start_time,tweet_valid_time = convert_datetime_from_spc_to_local(polygon,start_time,'start',from_zone,to_zone)
+    end_time,dummy = convert_datetime_from_spc_to_local(polygon,end_time,'end',from_zone,to_zone)
 
     # Generate legend patches
     legend_patches = []
@@ -892,15 +900,20 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
         # Tweet the result.
         print("  --> Smooth. Tweet.")
         US_time_dt = start_time_dt.astimezone(tz.gettz('America/New_York'))
+
+        print(f'    --> SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.')
+        print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.')
+
         if plot_day==1:
             if start_time_dt.strftime('%-H')=='1':
-                tweet(f'SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
-            else: 
-                tweet(f'SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+                tweet(f'{tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+            else:
+                tweet(f'{tweet_valid_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
         elif plot_day==2:
-            tweet(f'SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+            tweet(f'{tweet_valid_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
         else:
             tweet(f'SPC forecast for {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+
         print("  --> Smooth. Tweeted.")
 
     # Clear figure.
