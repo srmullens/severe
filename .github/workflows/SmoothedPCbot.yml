@@ -2,8 +2,8 @@ name: Gridded SPC Outlooks
 
 on:
   schedule:
-    - cron: '10 1,6,9,12,13,20 * * *'
-    - cron: '40 7,16,17 * * *'
+    - cron: '0 1,6,9,12,13,20 * * *'
+    - cron: '30 7,16,17 * * *'
 
 jobs:
   build:
@@ -60,17 +60,6 @@ jobs:
         # Run the code!
         python3 grid_SPC_outlook.py
       continue-on-error: True
-
-    - name: Wait? 
-      if: ${{ failure() }}
-      uses: jakejarvis/wait-action@master
-      with:
-        time: '5m'
-
-    - name: Try again.
-      if: ${{ failure() }}
-      run: |
-        python3 grid_SPC_outlook.py
 
     # We created some files. But we need to commit them to the repository.
     - name: Commit files
