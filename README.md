@@ -6,7 +6,6 @@ Creates a map of the current SPC Categorical Outlook, with the polygon edges smo
 
 If the Day 1-3 risk is less than a Slight Risk, the map shows the original unsmoothed polygon shape. This is way faster to run. The map is not tweeted out, since it doesn't fulfill the expectation of the account. But it is saved here.
 
-<img src="./spc/latest_smooth.png" width="40%" height="40%> <img src="./spc/latest_exact.png" width="40%" height="40%>
 
 ## Latest maps
 
