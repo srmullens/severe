@@ -2,13 +2,11 @@
 Code pertaining to SPC outlooks.
 
 ## grid_SPC_outlook.py
-Creates a map of the current Day 1 SPC Categorical Outlook, but the polygon edges have been smoothed over a 25-mile distance.
+Creates a map of the current SPC Categorical Outlook, with the polygon edges smoothed over a 25-mile radius from each 0.1 x 0.1 degree grid location.
 
-![Latest SPC map with smoothed polygons](./spc/latest_smooth.png)
+If the Day 1-3 risk is less than a Slight Risk, the map shows the original unsmoothed polygon shape. This is way faster to run. The map is not tweeted out, since it doesn't fulfill the expectation of the account. But it is saved here.
 
-If the risk is less than a Slight, creates a map showing the original polygon shape. This is way faster to run.
-
-![Latest SPC map of the exact polygon](./spc/latest_exact.png)
+<img src="./spc/latest_smooth.png" width="40%" height="40%> <img src="./spc/latest_exact.png" width="40%" height="40%>
 
 ## Latest maps
 
