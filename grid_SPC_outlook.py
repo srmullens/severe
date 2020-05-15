@@ -38,7 +38,7 @@ GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
 from datetime import datetime as dt, timedelta
 from dateutil import tz
-import time
+import time as t
 from timezonefinder import TimezoneFinder
 
 from twython import Twython
@@ -502,7 +502,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC vs {dt.strptime(cat_gdf['VALID'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.')
                 else:
-                    time.sleep(30)
+                    t.sleep(30)
                     tries += 1
             else:
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC")
@@ -517,7 +517,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
                 if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.')
                 else:
-                    time.sleep(30)
+                    tf.sleep(30)
                     tries+=1
 
     # If there is no polygon, plot_nothing=True
