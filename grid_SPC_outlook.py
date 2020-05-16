@@ -506,6 +506,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     tries = 1
     if plot_day<3:
         while tries<30:
+            cat_gdf = ''
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
             time_since_issued = time_since_issued.total_seconds()
@@ -522,6 +523,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     else:
         while tries<30:
             try:
+                cat_gdf = ''
                 cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
