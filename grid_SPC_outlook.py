@@ -513,13 +513,13 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                     t.sleep(30)
                     tries += 1
             else:
-                print(f"  --> Got it! {dt.utcnow():%H%M} UTC")
+                print(f"  --> Got it! {time_since_issued}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
     else:
         while tries<30:
             try:
                 cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
-                print(f"  --> Got it! {dt.utcnow():%H%M} UTC")
+                print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
             except:
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
