@@ -506,9 +506,9 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
             time_since_issued = time_since_issued.total_seconds()
 
-            if time_since_issued < 3600.0: #1800: # 30 minutes
+            if time_since_issued > 2700:  # 45 minutes
                 print(f"  --> Not available yet. {time_since_issued}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.')
+                if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                 else:
                     t.sleep(30)
                     tries += 1
@@ -523,7 +523,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 tries+=30
             except:
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
-                if tries==29: raise FileNotFoundError(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.')
+                if tries==29: print(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
                 else:
                     t.sleep(30)
                     tries+=1
