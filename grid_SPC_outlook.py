@@ -278,6 +278,7 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     if coords is not None:
         for coord in coords:
             new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
+            print(f"{coord} -> {tf.timezone_at(lng=coord[0], lat=coord[1])}")
 
         # Sort the resulting list from west to east.
         new_zones_list = list(set(new_zones_list))
@@ -297,6 +298,8 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
         # Sort the resulting list from west to east.
         west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
         sort_by = []
+        print(new_zones_list)
+        new_zones_list = [i for i in new_zones_list if i]  # Remove None values.
         print(new_zones_list)
         for item in new_zones_list: sort_by.append(west_to_east.index(item))
         new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
