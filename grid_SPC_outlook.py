@@ -297,6 +297,7 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
         # Sort the resulting list from west to east.
         west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
         sort_by = []
+        print(new_zones_list)
         for item in new_zones_list: sort_by.append(west_to_east.index(item))
         new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
 
