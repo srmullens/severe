@@ -504,20 +504,20 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
     # Read in Shapefile
     tries = 1
-    if plot_day<4:
+    if plot_day<3:
         while tries<30:
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
             time_since_issued = time_since_issued.total_seconds()
 
-            if time_since_issued > 2700:  # 45 minutes
-                print(f"  --> Not available yet. {time_since_issued}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+            if time_since_issued > 9000:  # 2.5 hours
+                print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                 else:
                     t.sleep(30)
                     tries += 1
             else:
-                print(f"  --> Got it! {time_since_issued}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
     else:
         while tries<30:
