@@ -45,7 +45,7 @@ from twython import Twython
 
 import warnings
 
-warnings.simplefilter("ignore",category=DownloadWarning)
+warnings.simplefilter("ignore",category='DownloadWarning')
 
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
 where='data'
