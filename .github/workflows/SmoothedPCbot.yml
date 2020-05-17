@@ -1,7 +1,7 @@
 name: Gridded SPC Outlooks
 
 on:
-  push
+  push 
   #schedule:
   #  - cron: '0 1,6,9,13,20 * * *'
   #  - cron: '30 7,16,17 * * *'
