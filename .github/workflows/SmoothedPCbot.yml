@@ -1,10 +1,10 @@
 name: Gridded SPC Outlooks
 
 on:
-  #push
-  schedule:
-    - cron: '0 1,6,9,13,20 * * *'
-    - cron: '30 7,16,17 * * *'
+  push
+  #schedule:
+  #  - cron: '0 1,6,9,13,20 * * *'
+  #  - cron: '30 7,16,17 * * *'
 
 jobs:
   build:
@@ -13,10 +13,13 @@ jobs:
     
     # This should cash the environment so we don't 
     # have to spend 3 minutes building a new one each time.
-    #- uses: actions/cache@v1
-    #  with:
-    #    path: ~/.cash/pip
-    #    key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+    - name: Cache conda
+      uses: actions/cache@v1
+      env:
+        CACHE_NUMBER: 0
+      with:
+        path: ~/conda_pkgs_dir
+        key: ${{ runner.os }}-conda-${{ env.CACHE_NUMBER }}-${{ hashFiles('**/requirements.txt') }}
     #    restore-keys: ${{ runner.os }}-pip-
 
     # Checkout allows us to use the files in this repository.
@@ -25,12 +28,15 @@ jobs:
       # This sets up conda... 
       # ...auto-creates a test environment (super annoying)...
       # ... and installs the python version and dependencies there.
-      uses: goanpeca/setup-miniconda@v1
+      uses: goanpeca/setup-miniconda@check-cache
+      #uses: goanpeca/setup-miniconda@v1
       with:
         auto-update-conda: true
         miniconda-version: latest
         activate-environment: test
         python-version: 3.7
+        environment-file: requirements.txt
+        use-only-tar-bz2: true
       
     - name: Install dependencies
       run: |
