@@ -416,13 +416,7 @@ def legend_location(category):
     leg_loc = [ll for _,ll in sorted(zip(sum_corners,corners_sort_by_low_max), key=lambda pair: pair[0])][0]
 
     print(f' --> Legend location: {leg_loc}')
-    """
-    # Set legend location to best corner.
-    if min_corner == lower_right: leg_loc = 4
-    elif min_corner == lower_left: leg_loc = 3
-    elif min_corner == upper_right: leg_loc = 1
-    elif min_corner == upper_left: leg_loc = 2
-    """
+    
     return leg_loc
 
 
@@ -519,7 +513,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                 else:
-                    t.sleep(30)
+                    t.sleep(120)
                     tries += 1
             else:
                 print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
@@ -535,7 +529,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
                 if tries==29: print(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
                 else:
-                    t.sleep(30)
+                    t.sleep(120)
                     tries+=1
 
     # If there is no polygon, plot_nothing=True
