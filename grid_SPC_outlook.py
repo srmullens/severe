@@ -315,24 +315,24 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     tweet_valid_time = ' '
     if len(new_zones_list)>=3:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
-            tweet_valid_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
 
     elif len(new_zones_list)==2:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
-            tweet_valid_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
 
     elif len(new_zones_list)==1:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %I:%M}{new_zones_list[0].strftime("%p").lower()}'
-            tweet_valid_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()}'
+            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
+            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
 
     print(f'  --> {start_end}: {date_time}')
     print(f'  --> {tweet_valid_time}')
@@ -853,7 +853,10 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
                 'y':0.93
             }
     plt.suptitle(f'SPC Day {plot_day} Severe Storm Outlook', **kwargs)
-    plt.title(f'{start_time} through {end_time}', fontsize=12, loc='center')
+    if plot_day==1:
+        plt.title(f'{start_time} through tomorrow morning.', fontsize=12, loc='center')
+    else:
+        plt.title(f'{start_time} through the next morning.', fontsize=12, loc='center')
 
 
     # Put attribution text in opposite corner as the legend.
