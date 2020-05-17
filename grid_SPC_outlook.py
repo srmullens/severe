@@ -319,17 +319,17 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     tweet_valid_time = ' '
     if len(new_zones_list)>=3:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
-            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
+            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
 
     elif len(new_zones_list)==2:
         if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
-            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
         elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}-{new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
 
     elif len(new_zones_list)==1:
         if start_end=='start':
