@@ -523,7 +523,9 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     if plot_day<3:
         while tries<30:
             # Download ZIP files
-            download_zip_files(issuing_center,product)
+            for issuing_center in shapefiles:
+                for product in shapefiles[issuing_center]:
+                    download_zip_files(issuing_center,product)
             # Read file you want
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
@@ -542,7 +544,9 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         while tries<30:
             try:
                 # Download ZIP files
-                download_zip_files(issuing_center,product)
+                for issuing_center in shapefiles:
+                    for product in shapefiles[issuing_center]:
+                        download_zip_files(issuing_center,product)
                 # Read file you want
                 cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
