@@ -33,7 +33,7 @@ jobs:
       with:
         auto-update-conda: true
         miniconda-version: latest
-        activate-environment: test
+        activate-environment: Updated
         auto-activate-base: false
         python-version: 3.7
         environment-file: .github/workflows/environment.yml
