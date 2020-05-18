@@ -58,10 +58,10 @@ plot_type_override = False
 plot_type = 'smooth'
 
 # What SPC day do you want to plot?
-plot_day = 2
+plot_day = 1
 
 # Need a time, plot_type, and plot_day override?
-override = False
+override = True
 if override: plot_type_override=override
 
 
@@ -529,7 +529,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
             time_since_issued = time_since_issued.total_seconds()
 
-            if time_since_issued > 9000 and override==False::  # 2.5 hours
+            if time_since_issued > 9000 and override==False:  # 2.5 hours
                 print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                 else:
