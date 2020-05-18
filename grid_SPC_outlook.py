@@ -58,10 +58,10 @@ plot_type_override = False
 plot_type = 'smooth'
 
 # What SPC day do you want to plot?
-plot_day = 2
+plot_day = 1
 
 # Need a time, plot_type, and plot_day override?
-override = True
+override = False
 if override: plot_type_override=override
 
 
