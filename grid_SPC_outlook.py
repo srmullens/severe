@@ -70,7 +70,7 @@ if override: plot_type_override=override
 #
 
 # Downloads a zip file and extracts it in a target directory of choice
-def download_zip_files(issuing_center,product):
+def download_zip_files(issuing_center,product,shapefiles):
     for issuing_center in shapefiles:
         for product in shapefiles[issuing_center]:
             download_zip_file(file_url = shapefiles[issuing_center][product], root_folder = issuing_center)
@@ -525,7 +525,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             # Download ZIP files
             for issuing_center in shapefiles:
                 for product in shapefiles[issuing_center]:
-                    download_zip_files(issuing_center,product)
+                    download_zip_files(issuing_center,product,shapefiles)
             # Read file you want
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
@@ -546,7 +546,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                 # Download ZIP files
                 for issuing_center in shapefiles:
                     for product in shapefiles[issuing_center]:
-                        download_zip_files(issuing_center,product)
+                        download_zip_files(issuing_center,product,shapefiles)
                 # Read file you want
                 cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
