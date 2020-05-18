@@ -282,10 +282,9 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
     if coords is not None:
         for coord in coords:
             new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
-            print(f"{coord} -> {tf.timezone_at(lng=coord[0], lat=coord[1])}")
 
-        # Sort the resulting list from west to east.
-        new_zones_list = list(set(new_zones_list))
+        # Remove None values.
+        new_zones_list = [i for i in new_zones_list if i]
 
         # Standardize time zones
         for i,item in enumerate(new_zones_list):
@@ -298,16 +297,19 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
                 new_zones_list[i] = 'America/Denver'
             elif zone in ['PST','PDT']:
                 new_zones_list[i] = 'America/Los_Angeles'
+        
+        # Sort the resulting list from west to east.
+        new_zones_list = list(set(new_zones_list))
 
         # Sort the resulting list from west to east.
         west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
         sort_by = []
         print(new_zones_list)
-        new_zones_list = [i for i in new_zones_list if i]  # Remove None values.
-        print(new_zones_list)
         for item in new_zones_list: sort_by.append(west_to_east.index(item))
         new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
 
+        print(new_zones_list)
+        
         # Use str time zone names to modify datetime objects
         for i,item in enumerate(new_zones_list):
             new_zones_list[i] = utc_time.astimezone(tz.gettz(item))
@@ -316,7 +318,7 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
         new_zones_list=[utc_time]
 
     # Generate string outputs
-    tweet_valid_time = ' '
+    tweet_valid_time = ''
     if len(new_zones_list)>=3:
         if start_end=='start':
             date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
