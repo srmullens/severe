@@ -32,7 +32,7 @@ jobs:
       with:
         auto-update-conda: true
         miniconda-version: latest
-        #activate-environment: test
+        activate-environment: test
         python-version: 3.7
         environment-file: requirements.txt
         use-only-tar-bz2: true
