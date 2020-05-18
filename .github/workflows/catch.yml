@@ -3,7 +3,7 @@ name: Catch
 on:
   push:
     paths:
-    - '**/catch.py'
+    - '**/catch.*'
     - '**/environment.yml'
 
 jobs:
