@@ -61,7 +61,7 @@ plot_type = 'smooth'
 plot_day = 2
 
 # Need a time, plot_type, and plot_day override?
-override = True
+override = False
 if override: plot_type_override=override
 
 
