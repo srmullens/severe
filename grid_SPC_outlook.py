@@ -43,12 +43,15 @@ from timezonefinder import TimezoneFinder
 
 from twython import Twython
 
-#import warnings
-#warnings.simplefilter("ignore",category='DownloadWarning')
+
+
 
 
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
 where='data'
+
+# What resolution do you want? 'low', 'mid', 'high'
+setting = 'low'
 
 # What type of plot: 'exact' or 'smooth'
 plot_type_override = False
@@ -57,16 +60,27 @@ plot_type = 'smooth'
 # What SPC day do you want to plot?
 plot_day = 1
 
-# What resolution do you want? 'low', 'mid', 'high'
-setting = 'low'
+# Need a time, plot_type, and plot_day override?
+override = True
+if override: plot_type_override=override
+
 
 #
 # Make some functions.
 #
 
 # Downloads a zip file and extracts it in a target directory of choice
-def download_zip_file(file_url, root_folder):
+def download_zip_files(issuing_center,product):
+    for issuing_center in shapefiles:
+        for product in shapefiles[issuing_center]:
+            download_zip_file(file_url = shapefiles[issuing_center][product], root_folder = issuing_center)
 
+    for zip_file in glob.glob(f'{os.getcwd()}/*.zip'):
+        head, tail = os.path.split(zip_file)
+        shutil.move(zip_file, f'zips/{tail}')
+
+
+def download_zip_file(file_url, root_folder):
     if not isinstance(file_url,str):
         raise TypeError(f'file URL must by type string, not {type(file_url)}')
     if not isinstance(root_folder,str):
@@ -81,8 +95,8 @@ def download_zip_file(file_url, root_folder):
                 f.write(chunk)
 
 
-    with zipfile.ZipFile(file, "r") as zip_ref:
-        zip_ref.extractall(f"{root_folder}/{folder}")
+    with zipfile.ZipFile(file, 'r') as zip_ref:
+        zip_ref.extractall(f'{root_folder}/{folder}')
         zip_ref.close()
 
 
@@ -256,7 +270,7 @@ def get_average_values(x,y,data,mask,grids):
 
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Smoothed ({tsec:.2f} seconds)")
+    print(f'--> Smoothed ({tsec:.2f} seconds)')
 
     return smooth_data
 
@@ -297,7 +311,7 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
                 new_zones_list[i] = 'America/Denver'
             elif zone in ['PST','PDT']:
                 new_zones_list[i] = 'America/Los_Angeles'
-        
+
         # Sort the resulting list from west to east.
         new_zones_list = list(set(new_zones_list))
 
@@ -309,7 +323,7 @@ def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zon
         new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
 
         print(new_zones_list)
-        
+
         # Use str time zone names to modify datetime objects
         for i,item in enumerate(new_zones_list):
             new_zones_list[i] = utc_time.astimezone(tz.gettz(item))
@@ -380,7 +394,7 @@ def Great_Lakes():
 
 # Determine an ideal legend location.
 def legend_location(category):
-    print("--> Determining Legend Location")
+    print('--> Determining Legend Location')
 
     # Get items for slicing the array
     height,width = category.shape
@@ -418,7 +432,7 @@ def legend_location(category):
     leg_loc = [ll for _,ll in sorted(zip(sum_corners,corners_sort_by_low_max), key=lambda pair: pair[0])][0]
 
     print(f' --> Legend location: {leg_loc}')
-    
+
     return leg_loc
 
 
@@ -433,13 +447,13 @@ def tweet(text, image):
     twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
     response = twitter.upload_media(media=open(image, 'rb'))
     twitter.update_status(status=text, media_ids=[response['media_id']])
-    print("  --> Tweeted.")
+    print('  --> Tweeted.')
 
 
 
 
 # The main function to make the plots.
-def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
+def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override):
     #
     # STEP 1: Get the files
     #
@@ -449,34 +463,34 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
     if plot_day<4:
         shapefiles = {
-            "spc": {f"categorical_day{plot_day}": f"https://www.spc.noaa.gov/products/outlook/day{plot_day}otlk-shp.zip"}
+            'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/outlook/day{plot_day}otlk-shp.zip'}
                     }
     else:
         shapefiles = {
-            "spc": {f"categorical_day{plot_day}": f"https://www.spc.noaa.gov/products/exper/day4-8/day{plot_day}prob-shp.zip"}
+            'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/exper/day4-8/day{plot_day}prob-shp.zip'}
                     }
     """
     shapefiles = {
-        "spc": {
-            "categorical_day1": "https://www.spc.noaa.gov/products/outlook/day1otlk-shp.zip",
-            "categorical_day2": "https://www.spc.noaa.gov/products/outlook/day2otlk-shp.zip",
-            "categorical_day3": "https://www.spc.noaa.gov/products/outlook/day3otlk-shp.zip",
-            "categorical_day4": "https://www.spc.noaa.gov/products/exper/day4-8/day4prob-shp.zip",
-            "categorical_day5": "https://www.spc.noaa.gov/products/exper/day4-8/day5prob-shp.zip",
-            "categorical_day6": "https://www.spc.noaa.gov/products/exper/day4-8/day6prob-shp.zip",
-            "categorical_day7": "https://www.spc.noaa.gov/products/exper/day4-8/day7prob-shp.zip",
-            "categorical_day8": "https://www.spc.noaa.gov/products/exper/day4-8/day8prob-shp.zip"
+        'spc': {
+            'categorical_day1': 'https://www.spc.noaa.gov/products/outlook/day1otlk-shp.zip',
+            'categorical_day2': 'https://www.spc.noaa.gov/products/outlook/day2otlk-shp.zip',
+            'categorical_day3': 'https://www.spc.noaa.gov/products/outlook/day3otlk-shp.zip',
+            'categorical_day4': 'https://www.spc.noaa.gov/products/exper/day4-8/day4prob-shp.zip',
+            'categorical_day5': 'https://www.spc.noaa.gov/products/exper/day4-8/day5prob-shp.zip',
+            'categorical_day6': 'https://www.spc.noaa.gov/products/exper/day4-8/day6prob-shp.zip',
+            'categorical_day7': 'https://www.spc.noaa.gov/products/exper/day4-8/day7prob-shp.zip',
+            'categorical_day8': 'https://www.spc.noaa.gov/products/exper/day4-8/day8prob-shp.zip'
         },
-        "wpc": {
-            "excessive_rain_day1": "https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day1_latest.zip",
-            "excessive_rain_day2" : "https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day2_latest.zip",
-            "excessive_rain_day3" : "https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day3_latest.zip"
+        'wpc': {
+            'excessive_rain_day1': 'https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day1_latest.zip',
+            'excessive_rain_day2' : 'https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day2_latest.zip',
+            'excessive_rain_day3' : 'https://ftp.wpc.ncep.noaa.gov/shapefiles/qpf/excessive/EXCESSIVERAIN_Day3_latest.zip'
         },
-        "nhc": {
-            "tropical_wx_outlook": "https://www.nhc.noaa.gov/xgtwo/gtwo_shapefiles.zip"
+        'nhc': {
+            'tropical_wx_outlook': 'https://www.nhc.noaa.gov/xgtwo/gtwo_shapefiles.zip'
         },
-        "drought": {
-            "latest": "https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip",
+        'drought': {
+            'latest': 'https://droughtmonitor.unl.edu/data/shapefiles_m/USDM_current_M.zip',
         }
     }
     """
@@ -491,27 +505,31 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
             clear_folder_contents(folder)
 
     # Get the shapefiles
-    print("--> Getting ZIPs")
+    print('--> Getting ZIPs')
     start_timer = dt.now()
 
+    """
     for issuing_center in shapefiles:
         for product in shapefiles[issuing_center]:
             download_zip_file(file_url = shapefiles[issuing_center][product], root_folder = issuing_center)
 
-    for zip_file in glob.glob(f"{os.getcwd()}/*.zip"):
+    for zip_file in glob.glob(f'{os.getcwd()}/*.zip'):
         head, tail = os.path.split(zip_file)
-        shutil.move(zip_file, f"zips/{tail}")
+        shutil.move(zip_file, f'zips/{tail}')
+    """
 
     # Read in Shapefile
     tries = 1
     if plot_day<3:
         while tries<30:
-            cat_gdf = ''
+            # Download ZIP files
+            download_zip_files(issuing_center,product)
+            # Read file you want
             cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
             time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
             time_since_issued = time_since_issued.total_seconds()
 
-            if time_since_issued > 9000:  # 2.5 hours
+            if time_since_issued > 9000 and override==False::  # 2.5 hours
                 print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                 else:
@@ -523,12 +541,14 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     else:
         while tries<30:
             try:
-                cat_gdf = ''
+                # Download ZIP files
+                download_zip_files(issuing_center,product)
+                # Read file you want
                 cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
             except:
-                print(f"  --> Not available yet. {dt.utcnow():%H%M} UTC")
+                print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
                 if tries==29: print(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
                 else:
                     t.sleep(120)
@@ -549,7 +569,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"  --> Got ZIPs ({tsec:.2f} seconds)")
+    print(f'  --> Got ZIPs ({tsec:.2f} seconds)')
 
 
     #
@@ -680,7 +700,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
         time_elapsed = dt.now() - start_timer
         tsec = round(time_elapsed.total_seconds(),2)
-        print(f"  --> Grid made ({tsec:.2f} seconds)")
+        print(f'  --> Grid made ({tsec:.2f} seconds)')
 
 
 
@@ -752,7 +772,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     # STEP 5: Plot the maps.
     #
     start_timer = dt.now()
-    print("--> Making maps")
+    print('--> Making maps')
 
     # Set Coordinate Reference System from the Shapefile Data
     data_crs = ccrs.PlateCarree()
@@ -786,7 +806,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     fig = plt.figure(1, figsize=(1024/48, 512/48))
     ax = plt.subplot(1, 1, 1, projection=map_crs)
 
-    print("--> Plot SPC polygons")
+    print('--> Plot SPC polygons')
 
     # Create colormap
     cmap_name='SPC'
@@ -820,7 +840,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     ax.set_extent(extent, data_crs)
 
     # Add map features
-    print("--> Adding cfeatures")
+    print('--> Adding cfeatures')
     if plot_type=='exact': ax.add_feature(cfeature.OCEAN.with_scale('50m'))
     elif plot_type=='smooth': ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=2,edgecolor='k')
     ax.add_feature(cfeature.LAND.with_scale('50m'),facecolor='w')
@@ -837,7 +857,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
     for lake in great_lakes:
         ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'], edgecolor='k' )
 
-    print("--> Legend, Title")
+    print('--> Legend, Title')
     # Plot the legend
     kwargs = {'loc':leg_loc,
                 'fontsize':'medium',
@@ -879,11 +899,11 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Map made ({tsec:.2f} seconds)")
+    print(f'--> Map made ({tsec:.2f} seconds)')
 
 
     # Save
-    print("--> Save")
+    print('--> Save')
     start_timer = dt.now()
 
     if plot_type=='exact':
@@ -907,23 +927,24 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
             shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_high.png')
 
         # Tweet the result.
-        print("  --> Smooth. Tweet.")
+        print('  --> Smooth. Tweet.')
         US_time_dt = start_time_dt.astimezone(tz.gettz('America/New_York'))
-
-        print(f'    --> SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.')
-        print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.')
 
         if plot_day==1:
             if start_time_dt.strftime('%-H')=='1':
+                print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.')
                 tweet(f'{tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
             else:
+                print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.')
                 tweet(f'{tweet_valid_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
         elif plot_day==2:
+            print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.')
             tweet(f'{tweet_valid_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
         else:
+            print(f'    --> Tweet: SPC forecast for {start_time_dt:%A, %b %-d}.'
             tweet(f'SPC forecast for {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
 
-        print("  --> Smooth. Tweeted.")
+        print('  --> Smooth. Tweeted.')
 
     # Clear figure.
     plt.clf()
@@ -931,26 +952,28 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting):
 
     time_elapsed = dt.now() - start_timer
     tsec = round(time_elapsed.total_seconds(),2)
-    print(f"--> Saved ({tsec:.2f} seconds)")
+    print(f'--> Saved ({tsec:.2f} seconds)')
 
 
     big_time_elapsed = dt.now() - big_start_timer
     tsec = round(big_time_elapsed.total_seconds(),2)
-    print(f"\n--> Done ({tsec:.2f} seconds)")
+    print(f'\n--> Done ({tsec:.2f} seconds)')
 
 
 
 
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     time = dt.utcnow()
     if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
     elif time.hour in [17]: h1=2; h2=3; st=1
     elif time.hour in [7]: h1=2; h2=4; st=1
     else: h1=8; h2=3; st=-1
 
+    if override: h1=plot_day; h2=plot_day+1; st=1
+
     for plot_day in range(h1,h2,st):
-        print(f"\n*** Day {plot_day} ***")
-        grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting)
+        print(f'\n*** Day {plot_day} ***')
+        grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override)
 
