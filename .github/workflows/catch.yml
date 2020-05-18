@@ -36,7 +36,7 @@ jobs:
         activate-environment: test
         auto-activate-base: false
         python-version: 3.7
-        environment-file: '**/environment.yml'
+        environment-file: '.github/workflows/environment.yml'
         #use-only-tar-bz2: true
       
     #- name: Install dependencies
