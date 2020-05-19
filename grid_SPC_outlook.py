@@ -58,16 +58,19 @@ plot_type_override = False
 plot_type = 'smooth'
 
 # What SPC day do you want to plot?
-plot_day = 2
+plot_day = 1
 
 # Need a time, plot_type, and plot_day override?
-override = False
+override = True
 if override: plot_type_override=override
 
+# Send tweet?
+send_tweet = False
 
-#
-# Make some functions.
-#
+
+########################
+# Make some functions. #
+########################
 
 # Downloads a zip file and extracts it in a target directory of choice
 def download_zip_files(issuing_center,product,shapefiles):
@@ -276,88 +279,108 @@ def get_average_values(x,y,data,mask,grids):
 
 
 # Convert time zones for printing
-def convert_datetime_from_spc_to_local(polygon,string,start_end,from_zone,to_zone='America/New_York'):
-    utc_time = dt.strptime(string, '%Y%m%d%H%M').replace(tzinfo=from_zone)
+#   start_time gets used in the title on the map.
+#   end_time isn't used right now, but it's included here just in case.
+#   issue_time gets used in the tweet.
+def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,where):
 
-    # Set up getting the time zone.
-    tf = TimezoneFinder()
+    # Convert all times to UTC.
+    from_zone = tz.gettz('UTC')
+    start_utc_time = dt.strptime(start_time, '%Y%m%d%H%M').replace(tzinfo=from_zone)
+    end_utc_time = dt.strptime(end_time, '%Y%m%d%H%M').replace(tzinfo=from_zone)
+    issue_utc_time = dt.strptime(issue_time, '%Y%m%d%H%M').replace(tzinfo=from_zone)
+
+    # Create some lists.
     new_zones_list = []
+    start_zones_list = []
+    end_zones_list = []
+    issue_zones_list = []
 
-    # Extract a list of coordinates from the polygon(s).
-    try:
-        if polygon.geom_type == 'MultiPolygon':
-            multipolygon = polygon
-            coords = [point for polygon in multipolygon for point in polygon.exterior.coords[:-1]]
-        elif polygon.geom_type == 'Polygon':
-            coords = list(polygon.exterior.coords)
-    except:
-        coords = None
+    # Determine time zones by where the data is...
+    if where in ['data','CONUS']:
+        # Set up getting the time zone.
+        tf = TimezoneFinder()
 
-    if coords is not None:
-        for coord in coords:
-            new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
+        # Extract a list of coordinates from the polygon(s).
+        try:
+            if polygon.geom_type == 'MultiPolygon':
+                multipolygon = polygon
+                coords = [point for polygon in multipolygon for point in polygon.exterior.coords[:-1]]
+            elif polygon.geom_type == 'Polygon':
+                coords = list(polygon.exterior.coords)
+        except:
+            coords = None
+            new_zones_list=[start_utc_time]
 
-        # Remove None values.
-        new_zones_list = [i for i in new_zones_list if i]
 
-        # Standardize time zones
-        for i,item in enumerate(new_zones_list):
-            zone = f'{utc_time.astimezone(tz.gettz(item)):%Z}'
-            if zone in ['EST','EDT']:
-                new_zones_list[i] = 'America/New_York'
-            elif zone in ['CST','CDT']:
-                new_zones_list[i] = 'America/Chicago'
-            elif zone in ['MST','MDT']:
-                new_zones_list[i] = 'America/Denver'
-            elif zone in ['PST','PDT']:
-                new_zones_list[i] = 'America/Los_Angeles'
+        if coords is not None:
+            for coord in coords:
+                # What timezone is each coordinate of the highest risk in?
+                new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
 
-        # Sort the resulting list from west to east.
-        new_zones_list = list(set(new_zones_list))
+            # Remove None values.
+            new_zones_list = [i for i in new_zones_list if i]
 
-        # Sort the resulting list from west to east.
-        west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
-        sort_by = []
-        print(new_zones_list)
-        for item in new_zones_list: sort_by.append(west_to_east.index(item))
-        new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
+            # Standardize time zones
+            for i,item in enumerate(new_zones_list):
+                zone = f'{start_utc_time.astimezone(tz.gettz(item)):%Z}'
+                if zone in ['EST','EDT']:
+                    new_zones_list[i] = 'America/New_York'
+                elif zone in ['CST','CDT']:
+                    new_zones_list[i] = 'America/Chicago'
+                elif zone in ['MST','MDT']:
+                    new_zones_list[i] = 'America/Denver'
+                elif zone in ['PST','PDT']:
+                    new_zones_list[i] = 'America/Los_Angeles'
 
-        print(new_zones_list)
+            # Reduce list to unique time zones.
+            print(f'  --> All time zones: {new_zones_list}')
+            new_zones_list = list(set(new_zones_list))
 
-        # Use str time zone names to modify datetime objects
-        for i,item in enumerate(new_zones_list):
-            new_zones_list[i] = utc_time.astimezone(tz.gettz(item))
+            # Sort the resulting list from west to east.
+            west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
+            sort_by = []
+            print(f'  --> Unique time zones: {new_zones_list}')
+            for item in new_zones_list: sort_by.append(west_to_east.index(item))
+            new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
 
+            print(f'  --> Sorted time zones: {new_zones_list}')
+
+            # Use str timezone names to modify datetime objects
+            for i,item in enumerate(new_zones_list):
+                start_zones_list.append(start_utc_time.astimezone(tz.gettz(item)))
+                end_zones_list.append(end_utc_time.astimezone(tz.gettz(item)))
+                issue_zones_list.append(issue_utc_time.astimezone(tz.gettz(item)))
+
+    # Use Eastern time zone for Florida or Southeast.
     else:
-        new_zones_list=[utc_time]
+        to_zone = tz.gettz('America/New_York')
+        start_zones_list = [start_utc_time.astimezone(tz.gettz(item))]
+        end_zones_list = [end_utc_time.astimezone(tz.gettz(item))]
+        issue_zones_list = [issue_utc_time.astimezone(tz.gettz(item))]
 
-    # Generate string outputs
-    tweet_valid_time = ''
-    if len(new_zones_list)>=3:
-        if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
-            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
-        elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[-1]:%-I:%M}{new_zones_list[-1].strftime("%p").lower()} {new_zones_list[-1]:%Z}'
 
-    elif len(new_zones_list)==2:
-        if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
-            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
-        elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}, {new_zones_list[1]:%-I:%M}{new_zones_list[1].strftime("%p").lower()} {new_zones_list[1]:%Z}'
+    # Generate string outputs based on how many time zones the highest risk covers.
+    if len(start_zones_list)>=3:
+        start_time = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}{start_zones_list[0].strftime("%p").lower()} {start_zones_list[0]:%Z}, {start_zones_list[-1]:%-I:%M}{start_zones_list[-1].strftime("%p").lower()} {start_zones_list[-1]:%Z}'
+        end_time = f'{end_zones_list[0]:%-I:%M}{end_zones_list[0].strftime("%p").lower()} {end_zones_list[0]:%Z}, {end_zones_list[-1]:%-I:%M}{end_zones_list[-1].strftime("%p").lower()} {end_zones_list[-1]:%Z}'
+        issue_time = f'{issue_zones_list[0]:%-I:%M}{issue_zones_list[0].strftime("%p").lower()} {issue_zones_list[0]:%Z}, or {issue_zones_list[-1]:%-I:%M}{issue_zones_list[-1].strftime("%p").lower()} {issue_zones_list[-1]:%Z}'
 
-    elif len(new_zones_list)==1:
-        if start_end=='start':
-            date_time = f'{new_zones_list[0]:%a, %b %d, %Y %-I:%M}{new_zones_list[0].strftime("%p").lower()}'
-            tweet_valid_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
-        elif start_end=='end':
-            date_time = f'{new_zones_list[0]:%-I:%M}{new_zones_list[0].strftime("%p").lower()} {new_zones_list[0]:%Z}'
+    elif len(start_zones_list)==2:
+        start_time = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}{start_zones_list[0].strftime("%p").lower()} {start_zones_list[0]:%Z}, {start_zones_list[-1]:%-I:%M}{start_zones_list[-1].strftime("%p").lower()} {start_zones_list[-1]:%Z}'
+        end_time = f'{end_zones_list[0]:%-I:%M}{end_zones_list[0].strftime("%p").lower()} {end_zones_list[0]:%Z}, {end_zones_list[-1]:%-I:%M}{end_zones_list[-1].strftime("%p").lower()} {end_zones_list[-1]:%Z}'
+        issue_time = f'{issue_zones_list[0]:%-I:%M}{issue_zones_list[0].strftime("%p").lower()} {issue_zones_list[0]:%Z}, or {issue_zones_list[-1]:%-I:%M}{issue_zones_list[-1].strftime("%p").lower()} {issue_zones_list[-1]:%Z}'
 
-    print(f'  --> {start_end}: {date_time}')
-    print(f'  --> {tweet_valid_time}')
+    elif len(start_zones_list)==1:
+        start_time = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}{start_zones_list[0].strftime("%p").lower()} {start_zones_list[0]:%Z}'
+        end_time = f'{end_zones_list[0]:%-I:%M}{end_zones_list[0].strftime("%p").lower()} {end_zones_list[0]:%Z}'
+        issue_time = f'{issue_zones_list[0]:%-I:%M}{issue_zones_list[0].strftime("%p").lower()} {issue_zones_list[0]:%Z}'
 
-    return date_time, tweet_valid_time
+    print(f'  --> start_time: {start_time}')
+    print(f'  --> end_time: {end_time}')
+    print(f'  --> issue_time: {issue_time}')
+
+    return start_time, end_time, issue_time
 
 
 # Get the country outlines of Mexico and Canada for the map.
@@ -437,22 +460,24 @@ def legend_location(category):
 
 
 # Tweet the results.
-def tweet(text, image):
-    consumer_key = os.environ.get('consumer_key')
-    consumer_secret = os.environ.get('consumer_secret')
-    access_token = os.environ.get('access_token')
-    access_token_secret = os.environ.get('access_token_secret')
+def tweet(text, image, send_tweet):
+    if send_tweet:
+        consumer_key = os.environ.get('consumer_key')
+        consumer_secret = os.environ.get('consumer_secret')
+        access_token = os.environ.get('access_token')
+        access_token_secret = os.environ.get('access_token_secret')
 
-    print('--> Tweeting...')
-    twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
-    response = twitter.upload_media(media=open(image, 'rb'))
-    twitter.update_status(status=text, media_ids=[response['media_id']])
-    print('  --> Tweeted.')
+        print('--> Tweeting...')
+        twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
+        response = twitter.upload_media(media=open(image, 'rb'))
+        twitter.update_status(status=text, media_ids=[response['media_id']])
+        print('  --> Tweeted.')
 
 
 
-
-# The main function to make the plots.
+########################################
+# The main function to make the plots. #
+########################################
 def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override):
     #
     # STEP 1: Get the files
@@ -508,17 +533,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     print('--> Getting ZIPs')
     start_timer = dt.now()
 
-    """
-    for issuing_center in shapefiles:
-        for product in shapefiles[issuing_center]:
-            download_zip_file(file_url = shapefiles[issuing_center][product], root_folder = issuing_center)
-
-    for zip_file in glob.glob(f'{os.getcwd()}/*.zip'):
-        head, tail = os.path.split(zip_file)
-        shutil.move(zip_file, f'zips/{tail}')
-    """
-
     # Read in Shapefile
+    #   If it's not available, wait and try again.
     tries = 1
     if plot_day<3:
         while tries<30:
@@ -580,6 +596,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     # STEP 2: Set some variables we'll need for later.
     #
 
+    ### COLORS ###
+
     # Set a variable of SPC categories and their fill colors.
     cat_plot_colors = {'General Thunderstorms Risk':'#C1E9C1',
                        'Marginal Risk': '#66A366',
@@ -607,6 +625,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     """
 
 
+    ### MAP EXTENT AND COORDINATE REFERENCE SYSTEM ###
+
     # Set Coordinate Reference System, extent, and legend location for the map
     if plot_nothing or where=='CONUS':
         map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
@@ -621,41 +641,84 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         extent = [-88,-79,24,32]
         leg_loc = 3
     elif where=='data':
-        extents = []
-        # Find the extent of each category in the outlook.
-        for key in cat_plot_colors.keys():
-            geometries = cat_gdf[cat_gdf['LABEL2'] == key]
-            if len(geometries) > 0:
-                geo_extent = geometries.bounds
-                extents.append([float(geo_extent['minx'])-1,
-                                float(geo_extent['maxx'])+1,
-                                float(geo_extent['miny'])-1,
-                                float(geo_extent['maxy'])+1 ])
-        if len(extents)>1:
-            # Plot extent of second highest category [-2].
-            extent = extents[-2]
+        # If there is at least a slight risk, calculate map extent.
+        if cat_gdf.size>2:
+            lower_within_upper_list = []
+
+            # Get polygons for highest and second highest risk category.
+            upper_category = cat_gdf.iloc[-1]['geometry']
+            lower_category = cat_gdf.iloc[-2]['geometry']
+
+            # Make a list of polygons for each category.
+            if lower_category.geom_type == 'MultiPolygon':
+                multipolygon = lower_category
+                lower_polygon = [polygon for polygon in multipolygon]
+            else:
+                lower_polygon = [lower_category]
+
+            if upper_category.geom_type == 'MultiPolygon':
+                multipolygon = upper_category
+                upper_polygon = [polygon for polygon in multipolygon]
+            else:
+                upper_polygon = [upper_category]
+
+            # Record whether each second-highest category has a highest category inside it.
+            for l_risk in lower_polygon:
+                inside_upper_list = []
+                for u_risk in upper_polygon:
+                    t1 = u_risk.touches(l_risk)
+                    t2 = l_risk.touches(u_risk)
+                    i1 = u_risk.intersects(l_risk)
+                    i2 = l_risk.intersects(u_risk)
+                    if any([t1,t2,i1,i2])==True:
+                        inside_upper_list.append(u_risk.touches(l_risk))
+                    elif any([t1,t2,i1,i2])==False:
+                        inside_upper_list.append(u_risk.touches(l_risk))
+
+                        # Report differences
+                        print(f'\nTouches: {u_risk.touches(l_risk)}')
+                        print(f'Touches 2: {l_risk.touches(u_risk)}')
+                        print(f'Intersects: {u_risk.intersects(l_risk)}')
+                        print(f'Intersects 2: {l_risk.intersects(u_risk)}')
+
+                if any(inside_upper_list)==True: lower_within_upper_list.append(True)
+                else: lower_within_upper_list.append(False)
+
+            # Include areas where the highest category exists in the map extent.
+            # Exclude locations where second-highest category does not contain
+            #   the highest category. 
+            bounds_list = []
+            for i in range(len(lower_category)):
+                if lower_within_upper_list[i]==True:
+                    cat_extent = lower_category[i].bounds
+                    print(cat_extent)
+                    bounds_list.append([float(cat_extent[0])-1,
+                                    float(cat_extent[2])+1,
+                                    float(cat_extent[1])-1,
+                                    float(cat_extent[3])+1 ])
+
+            # Accumulate the extent of the bounds...
+            bounds_W = min([i[0] for i in bounds_list])
+            bounds_E = max([i[1] for i in bounds_list])
+            bounds_S = min([i[2] for i in bounds_list])
+            bounds_N = max([i[3] for i in bounds_list])
+
+            # ...and set those bounds as the map extent.
+            extent = [bounds_W,bounds_E,bounds_S,bounds_N]
+            print(f'  --> Extent: {extent}')
+
+            # Use the bounds to make the map coordinate reference system (crs).
             clon = (extent[0]+extent[1])/2
             clat = (extent[2]+extent[3])/2
             map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
-            leg_loc = 0
-        elif len(extents)==1:
-            # Plot extent of only category.
-            extent = extents[0]
-            clon = (extent[0]+extent[1])/2
-            clat = (extent[2]+extent[3])/2
-            map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
-            leg_loc = 0
+
+            # NOTE: legend location is determined later.
+
         else:
             # Plot CONUS with no categories.
             extent = [-125,-66,24,50]
             map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
             leg_loc = 4
-
-    # Put attribution text in opposite corner as the legend.
-    if leg_loc==3:
-        att_x = 1-0.006; att_y = 0.01; att_ha='right'
-    if leg_loc==4:
-        att_x = 0.006; att_y = 0.01; att_ha='left'
 
 
 
@@ -768,9 +831,6 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         if where=='data':
             leg_loc = legend_location(category)
 
-        # Mask the smoothed data by what's on land.
-        #category = np.ma.masked_where(US_mask==False, category)
-
 
     #
     # STEP 5: Plot the maps.
@@ -781,19 +841,17 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     # Set Coordinate Reference System from the Shapefile Data
     data_crs = ccrs.PlateCarree()
 
-    # Get time data
+    # Get time data and convert it to useful strings
+    #   Used in tweet text and in the plot title
+    issue_time = cat_gdf['ISSUE'][0]
     start_time = cat_gdf['VALID'][0]
     end_time = cat_gdf['EXPIRE'][0]
 
-    start_time_dt = dt.strptime(start_time, '%Y%m%d%H%M')
-
-    from_zone = tz.gettz('UTC')
-    to_zone = tz.gettz('America/New_York')
+    start_time_dt = dt.strptime(start_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
 
     polygon = cat_gdf.iloc[-1]['geometry']
 
-    start_time,tweet_valid_time = convert_datetime_from_spc_to_local(polygon,start_time,'start',from_zone,to_zone)
-    end_time,dummy = convert_datetime_from_spc_to_local(polygon,end_time,'end',from_zone,to_zone)
+    start_time,end_time,issue_time = convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,where)
 
     # Generate legend patches
     legend_patches = []
@@ -806,7 +864,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             patch = mpatches.Patch(color=cat_plot_colors[risk], label=f'{risk}')
         legend_patches.append(patch)
 
-    # Setup matplotlib figure
+    # Setup matplotlib figure #
+    ###########################
     fig = plt.figure(1, figsize=(1024/48, 512/48))
     ax = plt.subplot(1, 1, 1, projection=map_crs)
 
@@ -817,7 +876,6 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     n_bin = 100
     cm = LinearSegmentedColormap.from_list(cmap_name, cat_fill_colors, N=n_bin)
 
-    ########################
     # Plot the categories! #
     ########################
     if plot_type=='smooth':
@@ -835,16 +893,20 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         for i,key in enumerate(cat_plot_colors.keys()):
             geometries = cat_gdf[cat_gdf['LABEL2'] == key]
 
-            # Check to see if there an area outlooked at all. If so, add the polygons to the map.
+            # Check to see if there an area outlooked at all. 
+            # If so, add the polygons to the map.
             if len(geometries) > 0:
+                print('  --> Plot ax.add_geometries')
                 ax.add_geometries(geometries['geometry'], crs=data_crs,
                               facecolor=cat_fill_colors[i+1],alpha=1)
 
-    # Set plot extent
+    # Set plot extent #
+    ###################
     ax.set_extent(extent, data_crs)
 
-    # Add map features
-    print('--> Adding cfeatures')
+    # Add map features #
+    ####################
+    print('  --> Adding cfeatures')
     if plot_type=='exact': ax.add_feature(cfeature.OCEAN.with_scale('50m'))
     elif plot_type=='smooth': ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=2,edgecolor='k')
     ax.add_feature(cfeature.LAND.with_scale('50m'),facecolor='w')
@@ -861,7 +923,9 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     for lake in great_lakes:
         ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'], edgecolor='k' )
 
-    print('--> Legend, Title')
+    # Legend, Title, Attribution #
+    ##############################
+    print('  --> Legend, Title, Attribution')
     # Plot the legend
     kwargs = {'loc':leg_loc,
                 'fontsize':'medium',
@@ -906,7 +970,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     print(f'--> Map made ({tsec:.2f} seconds)')
 
 
-    # Save
+    # Save #
+    ########
     print('--> Save')
     start_timer = dt.now()
 
@@ -931,24 +996,33 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_high.png')
 
         # Tweet the result.
-        print('  --> Smooth. Tweet.')
+        print('  --> Smooth and tweet.')
         US_time_dt = start_time_dt.astimezone(tz.gettz('America/New_York'))
 
+        save_to_file = f'spc/day{plot_day}_grid_categorical.png'
         if plot_day==1:
             if start_time_dt.strftime('%-H')=='1':
-                print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.')
-                tweet(f'{tweet_valid_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+                tweet_text = f'Issued at {issue_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.'
+                print(f'    --> Tweet: {tweet_text}')
+                tweet(tweet_text, save_to_file, send_tweet)
             else:
-                print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.')
-                tweet(f'{tweet_valid_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+                tweet_text = f'Issued at {issue_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.'
+                print(f'    --> Tweet: {tweet_text}')
+                tweet(tweet_text, save_to_file, send_tweet)
+
         elif plot_day==2:
-            print(f'    --> Tweet: {tweet_valid_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.')
-            tweet(f'{tweet_valid_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+            tweet_text = f'Issued at {issue_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.'
+            print(f'    --> Tweet: {tweet_text}')
+            tweet(tweet_text, save_to_file, send_tweet)
+
         else:
-            print(f'    --> Tweet: SPC forecast for {start_time_dt:%A, %b %-d}.')
-            tweet(f'SPC forecast for {start_time_dt:%A, %b %-d}.', f'spc/day{plot_day}_grid_categorical.png')
+            tweet_text = f'SPC forecast for {start_time_dt:%A, %b %-d}.'
+            print(f'    --> Tweet: {tweet_text}')
+            tweet(tweet_text, save_to_file, send_tweet)
 
         print('  --> Smooth. Tweeted.')
+
+
 
     # Clear figure.
     plt.clf()
