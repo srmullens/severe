@@ -53,19 +53,19 @@ where='data'
 # What resolution do you want? 'low', 'mid', 'high'
 setting = 'low'
 
-# What type of plot: 'exact' or 'smooth'
-plot_type_override = False
-plot_type = 'smooth'
+# Need a time, plot_type, and plot_day override?
+override = True
 
 # What SPC day do you want to plot?
 plot_day = 1
 
-# Need a time, plot_type, and plot_day override?
-override = False
+# What type of plot: 'exact' or 'smooth'
+plot_type_override = False
+plot_type = 'smooth'
 if override: plot_type_override=override
 
 # Send tweet?
-send_tweet = True
+send_tweet = False
 
 
 ########################
@@ -641,9 +641,36 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         extent = [-88,-79,24,32]
         leg_loc = 3
     elif where=='data':
-        # If there is at least a slight risk, calculate map extent.
-        if cat_gdf.size>2:
-            lower_within_upper_list = []
+        # Days 4-8, if there is any risk, calculate map extent.
+        if len(cat_gdf)==1 and plot_day>3:
+            # Get polygons for highest and second highest risk category.
+            only_category = cat_gdf.iloc[0]['geometry']
+
+            # Make a list of polygons for each category.
+            if only_category.geom_type == 'MultiPolygon':
+                multipolygon = only_category
+                upper_polygon = [polygon for polygon in multipolygon]
+            else:
+                upper_polygon = [only_category]
+
+            # Determine the extent.
+            cat_extent = only_category.bounds
+            extent = [float(cat_extent[0])-1,
+                        float(cat_extent[2])+1,
+                        float(cat_extent[1])-1,
+                        float(cat_extent[3])+1 ]
+
+            # Use the bounds to make the map coordinate reference system (crs).
+            clon = (extent[0]+extent[1])/2
+            clat = (extent[2]+extent[3])/2
+            map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
+
+            # NOTE: legend location is determined later.
+
+        # Days 1-3, if there is at least a slight risk, calculate map extent.
+        # Days 4-8, if there are two risks, calculate map extent.
+        elif (plot_day<4 and len(cat_gdf)>2) or (plot_day>3 and len(cat_gdf)>1):
+            lower_is_within_upper_list = []
 
             # Get polygons for highest and second highest risk category.
             upper_category = cat_gdf.iloc[-1]['geometry']
@@ -670,7 +697,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                     t2 = l_risk.touches(u_risk)
                     i1 = u_risk.intersects(l_risk)
                     i2 = l_risk.intersects(u_risk)
-                    if any([t1,t2,i1,i2])==True:
+                    if all([t1,t2,i1,i2])==True:
                         inside_upper_list.append(u_risk.touches(l_risk))
                     elif all([t1,t2,i1,i2])==False:
                         inside_upper_list.append(u_risk.touches(l_risk))
@@ -678,23 +705,29 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                         inside_upper_list.append(u_risk.touches(l_risk))
 
                         # Report differences
-                        print(f'\nTouches: {u_risk.touches(l_risk)}')
-                        print(f'Touches 2: {l_risk.touches(u_risk)}')
-                        print(f'Intersects: {u_risk.intersects(l_risk)}')
-                        print(f'Intersects 2: {l_risk.intersects(u_risk)}')
+                        print(f'\nTouches: {t1}')
+                        print(f'Touches 2: {t2}')
+                        print(f'Intersects: {i1}')
+                        print(f'Intersects 2: {i2}')
 
-                if any(inside_upper_list)==True: lower_within_upper_list.append(True)
-                else: lower_within_upper_list.append(False)
+                if any(inside_upper_list)==True: lower_is_within_upper_list.append(True)
+                else: lower_is_within_upper_list.append(False)
 
             # Include areas where the highest category exists in the map extent.
             # Exclude locations where second-highest category does not contain
             #   the highest category. 
             bounds_list = []
             for i in range(len(lower_category)):
-                if lower_within_upper_list[i]==True:
+                if lower_is_within_upper_list[i]==True:
                     cat_extent = lower_category[i].bounds
                     print(cat_extent)
                     bounds_list.append([float(cat_extent[0])-1,
+                                    float(cat_extent[2])+1,
+                                    float(cat_extent[1])-1,
+                                    float(cat_extent[3])+1 ])
+                else:
+                    cat_extent = lower_category[i].bounds
+                    other_bounds_list.append([float(cat_extent[0])-1,
                                     float(cat_extent[2])+1,
                                     float(cat_extent[1])-1,
                                     float(cat_extent[3])+1 ])
@@ -835,7 +868,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
 
     #
-    # STEP 5: Plot the maps.
+    # STEP 6: Plot the maps.
     #
     start_timer = dt.now()
     print('--> Making maps')
@@ -850,6 +883,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     end_time = cat_gdf['EXPIRE'][0]
 
     start_time_dt = dt.strptime(start_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
+    issue_time_dt = dt.strptime(issue_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
 
     polygon = cat_gdf.iloc[-1]['geometry']
 
@@ -1003,8 +1037,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
         save_to_file = f'spc/day{plot_day}_grid_categorical.png'
         if plot_day==1:
-            if start_time_dt.strftime('%-H')=='1':
-                tweet_text = f'Issued at {issue_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.'
+            if 3<int(issue_time_dt.strftime('%-H'))<10:
+                tweet_text = f'Issued at {issue_time}: SPC forecast for the upcoming day, {US_time_dt:%A, %B %-d}.'
                 print(f'    --> Tweet: {tweet_text}')
                 tweet(tweet_text, save_to_file, send_tweet)
             else:
