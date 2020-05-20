@@ -672,6 +672,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                     i2 = l_risk.intersects(u_risk)
                     if any([t1,t2,i1,i2])==True:
                         inside_upper_list.append(u_risk.touches(l_risk))
+                    elif all([t1,t2,i1,i2])==False:
+                        inside_upper_list.append(u_risk.touches(l_risk))
                     elif any([t1,t2,i1,i2])==False:
                         inside_upper_list.append(u_risk.touches(l_risk))
 
