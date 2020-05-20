@@ -717,6 +717,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             # Exclude locations where second-highest category does not contain
             #   the highest category. 
             bounds_list = []
+            other_bounds_list = []
             for i in range(len(lower_category)):
                 if lower_is_within_upper_list[i]==True:
                     cat_extent = lower_category[i].bounds
