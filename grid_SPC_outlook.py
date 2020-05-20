@@ -65,7 +65,7 @@ override = False
 if override: plot_type_override=override
 
 # Send tweet?
-send_tweet = False
+send_tweet = True
 
 
 ########################
