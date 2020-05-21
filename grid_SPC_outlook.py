@@ -438,6 +438,11 @@ def legend_location(category):
     lower_left_sum = np.sum(category[0:dh,0:dw])
     sum_corners = [lower_right_sum,lower_left_sum,upper_right_sum,upper_left_sum]
 
+    print(f'    --> lower right: Max: {lower_right_max:.1f}  Sum: {lower_right_sum:.2f}')
+    print(f'    --> lower left: Max: {lower_left_max:.1f}  Sum: {lower_left_sum:.2f}')
+    print(f'    --> upper right: Max: {upper_right_max:.1f}  Sum: {upper_right_sum:.2f}')
+    print(f'    --> upper left: Max: {upper_left_max:.1f}  Sum: {upper_left_sum:.2f}')
+
     # List of legend locations corresponding to the corners in max_corners and sum_corners.
     corners = [4,3,1,2]
 
@@ -467,7 +472,7 @@ def tweet(text, image, send_tweet):
         access_token = os.environ.get('access_token')
         access_token_secret = os.environ.get('access_token_secret')
 
-        print('--> Tweeting...')
+        print('  --> Tweeting...')
         twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
         response = twitter.upload_media(media=open(image, 'rb'))
         twitter.update_status(status=text, media_ids=[response['media_id']])
@@ -1061,7 +1066,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             print(f'    --> Tweet: {tweet_text}')
             tweet(tweet_text, save_to_file, send_tweet)
 
-        print('  --> Smooth. Tweeted.')
+        print('  --> Smooth: Tweeted.')
 
 
 
