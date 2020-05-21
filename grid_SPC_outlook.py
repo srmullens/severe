@@ -54,7 +54,7 @@ where='data'
 setting = 'low'
 
 # Need a time, plot_type, and plot_day override?
-override = False
+override = True
 
 # What SPC day do you want to plot?
 plot_day = 1
@@ -65,7 +65,7 @@ plot_type = 'smooth'
 if override: plot_type_override=override
 
 # Send tweet?
-send_tweet = True
+send_tweet = False
 
 
 ########################
@@ -1040,6 +1040,10 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         if plot_day==1:
             if 3<int(issue_time_dt.strftime('%-H'))<10:
                 tweet_text = f'Issued at {issue_time}: SPC forecast for the upcoming day, {US_time_dt:%A, %B %-d}.'
+                print(f'    --> Tweet: {tweet_text}')
+                tweet(tweet_text, save_to_file, send_tweet)
+            elif int(issue_time_dt.strftime('%-H'))<2:
+                tweet_text = f'Issued at {issue_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.'
                 print(f'    --> Tweet: {tweet_text}')
                 tweet(tweet_text, save_to_file, send_tweet)
             else:
