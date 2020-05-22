@@ -651,13 +651,6 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             # Get polygons for highest and second highest risk category.
             only_category = cat_gdf.iloc[0]['geometry']
 
-            # Make a list of polygons for each category.
-            if only_category.geom_type == 'MultiPolygon':
-                multipolygon = only_category
-                upper_polygon = [polygon for polygon in multipolygon]
-            else:
-                upper_polygon = [only_category]
-
             # Determine the extent.
             cat_extent = only_category.bounds
             extent = [float(cat_extent[0])-1,
@@ -684,20 +677,20 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             # Make a list of polygons for each category.
             if lower_category.geom_type == 'MultiPolygon':
                 multipolygon = lower_category
-                lower_polygon = [polygon for polygon in multipolygon]
+                lower_polygons = [polygon for polygon in multipolygon]
             else:
-                lower_polygon = [lower_category]
+                lower_polygons = [lower_category]
 
             if upper_category.geom_type == 'MultiPolygon':
                 multipolygon = upper_category
-                upper_polygon = [polygon for polygon in multipolygon]
+                upper_polygons = [polygon for polygon in multipolygon]
             else:
-                upper_polygon = [upper_category]
+                upper_polygons = [upper_category]
 
             # Record whether each second-highest category has a highest category inside it.
-            for l_risk in lower_polygon:
+            for l_risk in lower_polygons:
                 inside_upper_list = []
-                for u_risk in upper_polygon:
+                for u_risk in upper_polygons:
                     t1 = u_risk.touches(l_risk)
                     t2 = l_risk.touches(u_risk)
                     i1 = u_risk.intersects(l_risk)
@@ -723,16 +716,14 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             #   the highest category. 
             bounds_list = []
             other_bounds_list = []
-            for i in range(len(lower_category)):
+            for i in range(len(lower_polygons)):
+                cat_extent = lower_polygons[i].bounds
                 if lower_is_within_upper_list[i]==True:
-                    cat_extent = lower_category[i].bounds
-                    print(cat_extent)
                     bounds_list.append([float(cat_extent[0])-1,
                                     float(cat_extent[2])+1,
                                     float(cat_extent[1])-1,
                                     float(cat_extent[3])+1 ])
                 else:
-                    cat_extent = lower_category[i].bounds
                     other_bounds_list.append([float(cat_extent[0])-1,
                                     float(cat_extent[2])+1,
                                     float(cat_extent[1])-1,
