@@ -54,7 +54,7 @@ where='data'
 setting = 'low'
 
 # Need a time, plot_type, and plot_day override?
-override = False
+override = True
 
 # What SPC day do you want to plot?
 plot_day = 1
@@ -65,7 +65,7 @@ plot_type = 'smooth'
 if override: plot_type_override=override
 
 # Send tweet?
-send_tweet = True
+send_tweet = False
 
 
 ########################
@@ -249,8 +249,6 @@ def get_average_values(x,y,data,mask,grids):
                             # ...include it in the smoothing around this location.
                             sum_cats += include_value
                             count += 1
-                            #if lat==int(i/2) and lon==int(i/2):
-                            #    print(f'  {orig_x}/{orig_y}->{include_x}/{include_y}->{dist:.1f}: {include_value}')
 
             # Record the average category of all the nearby locations.
             if count>0: smooth_data[lat,lon] = sum_cats/count
@@ -421,8 +419,8 @@ def legend_location(category):
 
     # Get items for slicing the array
     height,width = category.shape
-    dh = int(round(height*0.25,0))
-    dw = int(round(width*0.25,0))
+    dh = int(round(height*0.35,0))
+    dw = int(round(width*0.35,0))
 
     # Max category within the slice.
     upper_right_max = np.amax(category[height-dh:height,width-dw:width])
@@ -465,7 +463,7 @@ def legend_location(category):
 
 
 # Tweet the results.
-def tweet(text, image, send_tweet):
+def tweet(text, image, send_tweet, reply):
     if send_tweet:
         consumer_key = os.environ.get('consumer_key')
         consumer_secret = os.environ.get('consumer_secret')
@@ -474,21 +472,43 @@ def tweet(text, image, send_tweet):
 
         print('  --> Tweeting...')
         twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
-        response = twitter.upload_media(media=open(image, 'rb'))
-        twitter.update_status(status=text, media_ids=[response['media_id']])
+
+        # Tweet status.
+        if not reply:
+            response = twitter.upload_media(media=open(image, 'rb'))
+            twitter.update_status(status=text, media_ids=[response['media_id']])
+
+        # If there is another image, make or continue a thread.
+        elif reply:
+            # ...Get most recent tweet's ID from the timeline...
+            timeline = twitter.get_user_timeline(screen_name='SmoothedPC',count=5)
+            tweet_list = []
+            for tweet in timeline:
+                created = dt.strptime(tweet['created_at'],'%a %b %d %H:%M:%S %z %Y')
+                tweet_list.append({'created_at':created,'id':tweet['id']})
+                tweet_list = sorted(tweet_list, key = lambda i: i['created_at'],reverse=True)
+                tweet_id = tweet_list[0]['id']
+
+            response = twitter.upload_media(media=open(image, 'rb'))
+            twitter.update_status(status=text,
+                                media_ids=[response['media_id']],
+                                in_reply_to_status_id=tweet_id,
+                                auto_populate_reply_metadata=True)
         print('  --> Tweeted.')
+    else:
+        if not reply: print('    --> TEST Original tweet')
+        elif reply: print('    --> TEST Reply to tweet')
 
 
 
 ########################################
 # The main function to make the plots. #
 ########################################
-def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override):
+def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
     #
     # STEP 1: Get the files
     #
 
-    big_start_timer = dt.now()
     print('--> Get the files')
 
     if plot_day<4:
@@ -541,6 +561,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     # Read in Shapefile
     #   If it's not available, wait and try again.
     tries = 1
+
+    # For Day 1 and Day 2 forecasts...
     if plot_day<3:
         while tries<30:
             # Download ZIP files
@@ -561,6 +583,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             else:
                 print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
+
+    # For Day 3 through Day 8 forecasts...
     else:
         while tries<30:
             try:
@@ -569,12 +593,12 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                     for product in shapefiles[issuing_center]:
                         download_zip_files(issuing_center,product,shapefiles)
                 # Read file you want
-                cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp')
+                cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
             except:
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
-                if tries==29: print(f'Could not find day{plot_day}otlk_{big_start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
+                if tries==29: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
                 else:
                     t.sleep(120)
                     tries+=1
@@ -598,51 +622,20 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
 
     #
-    # STEP 2: Set some variables we'll need for later.
+    # STEP 2: Set the map extent, legend location, and coordinate reference
+    #   system for plotting the map.
     #
 
-    ### COLORS ###
-
-    # Set a variable of SPC categories and their fill colors.
-    cat_plot_colors = {'General Thunderstorms Risk':'#C1E9C1',
-                       'Marginal Risk': '#66A366',
-                       'Slight Risk': '#FFE066',
-                       'Enhanced Risk': '#FFA366',
-                       'Moderate Risk': '#E06666',
-                       'High Risk': '#e29ee9'}
-    prob_plot_colors = {'15% Any Severe Risk':'#FFE066',
-                        '30% Any Severe Risk':'#FFA366'}
-
-    cat_fill_colors = [(1,1,1,0),'#C1E9C1','#66A366','#FFE066','#FFA366','#E06666','magenta']
-    prob_fill_colors = [(1,1,1,0),'#FFE066','#FFA366']
-
-    if plot_day>3:
-        cat_plot_colors = prob_plot_colors
-        cat_fill_colors = prob_fill_colors
-
-    """
-    # Set colors
-    cat_plot_colors = {'Marginal Risk': 'green',
-                       'Slight Risk': 'yellow',
-                       'Enhanced Risk': 'orange',
-                       'Moderate Risk': 'red',
-                       'High Risk': 'magenta'}
-    """
-
-
-    ### MAP EXTENT AND COORDINATE REFERENCE SYSTEM ###
+    ### MAP EXTENT, LEGEND LOCATION, AND COORDINATE REFERENCE SYSTEM ###
 
     # Set Coordinate Reference System, extent, and legend location for the map
     if plot_nothing or where=='CONUS':
-        map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
         extent = [-125,-66,24,50]
         leg_loc = 4
     elif where == 'Southeast':
-        map_crs = ccrs.Orthographic(central_latitude=30.7, central_longitude=-88)
         extent = [-95, -75, 24, 35]
         leg_loc = 4
     elif where=='Florida':
-        map_crs = ccrs.Orthographic(central_latitude=28, central_longitude=-83)
         extent = [-88,-79,24,32]
         leg_loc = 3
     elif where=='data':
@@ -651,6 +644,13 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             # Get polygons for highest and second highest risk category.
             only_category = cat_gdf.iloc[0]['geometry']
 
+            # Make a list of polygons for each category.
+            if only_category.geom_type == 'MultiPolygon':
+                multipolygon = only_category
+                upper_polygon = [polygon for polygon in multipolygon]
+            else:
+                upper_polygon = [only_category]
+
             # Determine the extent.
             cat_extent = only_category.bounds
             extent = [float(cat_extent[0])-1,
@@ -658,12 +658,8 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                         float(cat_extent[1])-1,
                         float(cat_extent[3])+1 ]
 
-            # Use the bounds to make the map coordinate reference system (crs).
-            clon = (extent[0]+extent[1])/2
-            clat = (extent[2]+extent[3])/2
-            map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
-
             # NOTE: legend location is determined later.
+            leg_loc = 0
 
         # Days 1-3, if there is at least a slight risk, calculate map extent.
         # Days 4-8, if there are two risks, calculate map extent.
@@ -677,24 +673,28 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             # Make a list of polygons for each category.
             if lower_category.geom_type == 'MultiPolygon':
                 multipolygon = lower_category
-                lower_polygons = [polygon for polygon in multipolygon]
+                lower_polygon = [polygon for polygon in multipolygon]
             else:
-                lower_polygons = [lower_category]
+                lower_polygon = [lower_category]
 
             if upper_category.geom_type == 'MultiPolygon':
                 multipolygon = upper_category
-                upper_polygons = [polygon for polygon in multipolygon]
+                upper_polygon = [polygon for polygon in multipolygon]
             else:
-                upper_polygons = [upper_category]
+                upper_polygon = [upper_category]
 
             # Record whether each second-highest category has a highest category inside it.
-            for l_risk in lower_polygons:
+            for l_risk in lower_polygon:
                 inside_upper_list = []
-                for u_risk in upper_polygons:
+                for u_risk in upper_polygon:
                     t1 = u_risk.touches(l_risk)
                     t2 = l_risk.touches(u_risk)
                     i1 = u_risk.intersects(l_risk)
                     i2 = l_risk.intersects(u_risk)
+                    print(f'    Touches: {t1} {t2}')
+                    print(f'    Intersects: {i1} {i2}')
+                    print(f'    Withins: {l_risk.within(u_risk)} {u_risk.within(l_risk)}')
+                    print(f'    Intersections: {l_risk.intersection(u_risk).equals(u_risk)} {l_risk.intersection(u_risk).__eq__(u_risk)}')
                     if all([t1,t2,i1,i2])==True:
                         inside_upper_list.append(u_risk.touches(l_risk))
                     elif all([t1,t2,i1,i2])==False:
@@ -706,7 +706,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                         print(f'\nTouches: {t1}')
                         print(f'Touches 2: {t2}')
                         print(f'Intersects: {i1}')
-                        print(f'Intersects 2: {i2}')
+                        print(f'Intersects 2: {i2}\n')
 
                 if any(inside_upper_list)==True: lower_is_within_upper_list.append(True)
                 else: lower_is_within_upper_list.append(False)
@@ -716,14 +716,15 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             #   the highest category. 
             bounds_list = []
             other_bounds_list = []
-            for i in range(len(lower_polygons)):
-                cat_extent = lower_polygons[i].bounds
+            for i in range(len(lower_polygon)):
                 if lower_is_within_upper_list[i]==True:
+                    cat_extent = lower_polygon[i].bounds
                     bounds_list.append([float(cat_extent[0])-1,
                                     float(cat_extent[2])+1,
                                     float(cat_extent[1])-1,
                                     float(cat_extent[3])+1 ])
                 else:
+                    cat_extent = lower_polygon[i].bounds
                     other_bounds_list.append([float(cat_extent[0])-1,
                                     float(cat_extent[2])+1,
                                     float(cat_extent[1])-1,
@@ -739,21 +740,34 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             extent = [bounds_W,bounds_E,bounds_S,bounds_N]
             print(f'  --> Extent: {extent}')
 
-            # Use the bounds to make the map coordinate reference system (crs).
-            clon = (extent[0]+extent[1])/2
-            clat = (extent[2]+extent[3])/2
-            map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
-
             # NOTE: legend location is determined later.
+            leg_loc = 0
 
         else:
             # Plot CONUS with no categories.
             extent = [-125,-66,24,50]
-            map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
             leg_loc = 4
 
 
+    #
+    # On to steps 3-5, plotting the maps!
+    #
+    reply = False
+    plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply)
 
+    if where in ['data']:
+        # If lower category is at least slight
+        if len(cat_gdf)>3:
+            for i,bounds in enumerate(other_bounds_list):
+                reply = i+1
+                plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,bounds,leg_loc,cat_gdf,reply)
+
+
+
+###################################################
+# Makes the grid, smooths it, and plots the data. #
+###################################################
+def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply):
     #
     # STEP 3: Make the lat/lon grid.
     #
@@ -806,6 +820,23 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     #
     # STEP 4: Determine which grid points are in the outlook.
     #
+
+    ### RISK LEVELS AND COLORS ###
+    # Set a variable of SPC categories and their fill colors.
+    cat_plot_colors = {'General Thunderstorms Risk':'#C1E9C1',
+                       'Marginal Risk': '#66A366',
+                       'Slight Risk': '#FFE066',
+                       'Enhanced Risk': '#FFA366',
+                       'Moderate Risk': '#E06666',
+                       'High Risk': 'magenta'}
+    prob_plot_colors = {'15% Any Severe Risk':'#FFE066',
+                        '30% Any Severe Risk':'#FFA366'}
+
+    if plot_day>3:
+        cat_plot_colors = prob_plot_colors
+
+    category_labels = [key for key in cat_plot_colors.keys()]
+
     if plot_type == 'smooth':
         print('--> Mask SPC categories')
 
@@ -813,7 +844,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         # 0=N/A, 1=TSTM, ... , 6=HIGH
         categories = []
 
-        for key in cat_plot_colors.keys():
+        for key in category_labels:
             geometries = cat_gdf[cat_gdf['LABEL2'] == key]
 
             if len(geometries) > 0:
@@ -843,7 +874,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                 if i==0:
                     print(f'\nNONE: {(category == i).sum()} = {(category == i).sum()/grid_size*100:.2f}% of Grid')
                 elif i<=len(cat_gdf):
-                    label2 = [key for key in cat_plot_colors.keys()][i-1]
+                    label2 = category_labels[i-1]
                     label = list(cat_gdf[cat_gdf['LABEL2'] == label2]['LABEL'])[0]
                     print(f'{label}: {(category >= i).sum()} = {(category >= i).sum()/US_mask_count*100:.2f}% of US')
             print('\n')
@@ -888,7 +919,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Generate legend patches
     legend_patches = []
-    for i,risk in enumerate(reversed(list(cat_plot_colors.keys()))):
+    for i,risk in enumerate(reversed(category_labels)):
         if risk == 'General Thunderstorms Risk':
             patch = mpatches.Patch(color=cat_plot_colors[risk], label='Lightning Storms')
         elif plot_day<4:
@@ -899,12 +930,21 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Setup matplotlib figure #
     ###########################
+    if plot_type=='CONUS': map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
+    else:
+        clon = (extent[0]+extent[1])/2
+        clat = (extent[2]+extent[3])/2
+        map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
+
     fig = plt.figure(1, figsize=(1024/48, 512/48))
     ax = plt.subplot(1, 1, 1, projection=map_crs)
 
     print('--> Plot SPC polygons')
 
     # Create colormap
+    cat_fill_colors = [(1,1,1,0)]
+    for color in cat_plot_colors: cat_fill_colors.append(cat_plot_colors[color])
+
     cmap_name='SPC'
     n_bin = 100
     cm = LinearSegmentedColormap.from_list(cmap_name, cat_fill_colors, N=n_bin)
@@ -923,7 +963,7 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     elif plot_type=='exact':
 
-        for i,key in enumerate(cat_plot_colors.keys()):
+        for i,key in enumerate(category_labels):
             geometries = cat_gdf[cat_gdf['LABEL2'] == key]
 
             # Check to see if there an area outlooked at all. 
@@ -982,13 +1022,17 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Put attribution text in opposite corner as the legend.
     if leg_loc==4:
-        att_x = 0.006; att_y = 0.01; att_ha='left'
-    else: att_x = 1-0.006; att_y = 0.01; att_ha='right'
+        att_x = 0.006
+        att_y = 0.01
+        att_ha='left'
+    else:
+        att_x = 1-0.006
+        att_y = 0.01
+        att_ha='right'
 
     # Add attribution
     text = '@SmoothedPC'
     kwargs = {'weight':'bold',
-                    #'bbox':dict(boxstyle="round",ec='white',fc="white",alpha=0.75),
                     'va':'bottom',
                     'ha':att_ha,
                     'snap':True,
@@ -1008,54 +1052,60 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     print('--> Save')
     start_timer = dt.now()
 
+    save_location = f'spc/day{plot_day}_categorical.png'
+
     if plot_type=='exact':
+        save_location = f'spc/day{plot_day}_categorical.png'
+
         # Save the figure.
-        plt.savefig(f'spc/day{plot_day}_categorical.png', dpi=96, bbox_inches='tight')
+        plt.savefig(save_location, dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'spc/latest_day{plot_day}_categorical.png')
-        shutil.copy2(f'spc/day{plot_day}_categorical.png',f'spc/latest_exact.png')
+        shutil.copy2(save_location,f'spc/latest_day{plot_day}_categorical.png')
+        shutil.copy2(save_location,f'spc/latest_exact.png')
 
     elif plot_type=='smooth':
+        if not reply: save_location = f'spc/day{plot_day}_grid_categorical.png'
+        else: save_location = f'spc/day{plot_day}_{reply}_grid_categorical.png'
+
         # Save the figure.
-        plt.savefig(f'spc/day{plot_day}_grid_categorical.png', dpi=96, bbox_inches='tight')
+        plt.savefig(save_location, dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_day{plot_day}_categorical.png')
-        shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_smooth.png')
+        if not reply:
+            shutil.copy2(save_location,f'spc/latest_day{plot_day}_categorical.png')
+            shutil.copy2(save_location,f'spc/latest_smooth.png')
 
         # If high risk, keep it!
         if len(cat_gdf)==6:
-            shutil.copy2(f'spc/day{plot_day}_grid_categorical.png',f'spc/latest_high.png')
+            shutil.copy2(save_location,f'spc/latest_high.png')
 
         # Tweet the result.
         print('  --> Smooth and tweet.')
         US_time_dt = start_time_dt.astimezone(tz.gettz('America/New_York'))
 
-        save_to_file = f'spc/day{plot_day}_grid_categorical.png'
         if plot_day==1:
             if 3<int(issue_time_dt.strftime('%-H'))<10:
                 tweet_text = f'Issued at {issue_time}: SPC forecast for the upcoming day, {US_time_dt:%A, %B %-d}.'
-                print(f'    --> Tweet: {tweet_text}')
-                tweet(tweet_text, save_to_file, send_tweet)
             elif int(issue_time_dt.strftime('%-H'))<2:
                 tweet_text = f'Issued at {issue_time}: SPC forecast for TONIGHT, {US_time_dt:%A, %B %-d}.'
-                print(f'    --> Tweet: {tweet_text}')
-                tweet(tweet_text, save_to_file, send_tweet)
             else:
                 tweet_text = f'Issued at {issue_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.'
-                print(f'    --> Tweet: {tweet_text}')
-                tweet(tweet_text, save_to_file, send_tweet)
+            print(f'    --> Tweet: {tweet_text}')
+            tweet(tweet_text, save_location, send_tweet, reply)
 
         elif plot_day==2:
-            tweet_text = f'Issued at {issue_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.'
+            if int(issue_time_dt.strftime('%-H'))<12:
+                tweet_text = f'Issued at {issue_time}: SPC forecast for {start_time_dt:%A, %b %-d}.'
+            else:
+                tweet_text = f'Issued at {issue_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.'
             print(f'    --> Tweet: {tweet_text}')
-            tweet(tweet_text, save_to_file, send_tweet)
+            tweet(tweet_text, save_location, send_tweet, reply)
 
         else:
             tweet_text = f'SPC forecast for {start_time_dt:%A, %b %-d}.'
             print(f'    --> Tweet: {tweet_text}')
-            tweet(tweet_text, save_to_file, send_tweet)
+            tweet(tweet_text, save_location, send_tweet, reply)
 
         print('  --> Smooth: Tweeted.')
 
@@ -1070,9 +1120,6 @@ def grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     print(f'--> Saved ({tsec:.2f} seconds)')
 
 
-    big_time_elapsed = dt.now() - big_start_timer
-    tsec = round(big_time_elapsed.total_seconds(),2)
-    print(f'\n--> Done ({tsec:.2f} seconds)')
 
 
 
@@ -1088,7 +1135,15 @@ if __name__ == '__main__':
 
     if override: h1=plot_day; h2=plot_day+1; st=1
 
+    # Time it
+    big_start_timer = dt.now()
+
+    # Run the code
     for plot_day in range(h1,h2,st):
         print(f'\n*** Day {plot_day} ***')
-        grid_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override)
+        get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override)
 
+    # Report time
+    big_time_elapsed = dt.now() - big_start_timer
+    tsec = round(big_time_elapsed.total_seconds(),2)
+    print(f'\n--> Done ({tsec:.2f} seconds)')
