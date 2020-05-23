@@ -691,7 +691,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                     t2 = l_risk.touches(u_risk)
                     i1 = u_risk.intersects(l_risk)
                     i2 = l_risk.intersects(u_risk)
-                    print(f'    Touches: {t1} {t2}')
+                    print(f'\n    Touches: {t1} {t2}')
                     print(f'    Intersects: {i1} {i2}')
                     print(f'    Withins: {l_risk.within(u_risk)} {u_risk.within(l_risk)}')
                     print(f'    Intersections: {l_risk.intersection(u_risk).equals(u_risk)} {l_risk.intersection(u_risk).__eq__(u_risk)}')
@@ -716,6 +716,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             #   the highest category. 
             bounds_list = []
             other_bounds_list = []
+            other_polygons_list = []
             for i in range(len(lower_polygon)):
                 if lower_is_within_upper_list[i]==True:
                     cat_extent = lower_polygon[i].bounds
@@ -724,6 +725,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     float(cat_extent[1])-1,
                                     float(cat_extent[3])+1 ])
                 else:
+                    other_polygons_list.append(lower_polygon[i])
                     cat_extent = lower_polygon[i].bounds
                     other_bounds_list.append([float(cat_extent[0])-1,
                                     float(cat_extent[2])+1,
@@ -760,21 +762,21 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
         if len(cat_gdf)>3:
             for i,bounds in enumerate(other_bounds_list):
                 reply = i+1
-                plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,bounds,leg_loc,cat_gdf,reply)
+                plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,bounds,leg_loc,cat_gdf,reply,reply_polygon=other_polygons_list[i])
 
 
 
 ###################################################
 # Makes the grid, smooths it, and plots the data. #
 ###################################################
-def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply):
+def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply,reply_polygon=False):
     #
     # STEP 3: Make the lat/lon grid.
     #
 
     if plot_type == 'smooth':
         start_timer = dt.now()
-        print('--> Make grid')
+        print('\n\n--> Make grid')
 
         # Make a grid of 0.01x0.01 degrees that covers the CONUS.
         #   CONUS covers N,S,W,E: 50,24,-125,-66
@@ -913,7 +915,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     start_time_dt = dt.strptime(start_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
     issue_time_dt = dt.strptime(issue_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
 
-    polygon = cat_gdf.iloc[-1]['geometry']
+    if not reply: polygon = cat_gdf.iloc[-1]['geometry']
+    else: polygon = reply_polygon
 
     start_time,end_time,issue_time = convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,where)
 
