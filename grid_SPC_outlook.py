@@ -57,7 +57,7 @@ setting = 'low'
 override = False
 
 # What SPC day do you want to plot?
-plot_day = 1
+plot_day = 3
 
 # What type of plot: 'exact' or 'smooth'
 plot_type_override = False
@@ -593,7 +593,10 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                     for product in shapefiles[issuing_center]:
                         download_zip_files(issuing_center,product,shapefiles)
                 # Read file you want
-                cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
+                if plot_day==3:
+                    cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
+                else:
+                    cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
                 print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
             except:
