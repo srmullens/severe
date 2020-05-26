@@ -12,7 +12,7 @@
 
 import requests
 from contextlib import closing
-import zipfile
+import zipfile, tarfile
 import os
 import glob
 import shutil
@@ -57,7 +57,7 @@ setting = 'low'
 override = False
 
 # What SPC day do you want to plot?
-plot_day = 3
+plot_day = 1
 
 # What type of plot: 'exact' or 'smooth'
 plot_type_override = False
@@ -379,6 +379,30 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
     print(f'  --> issue_time: {issue_time}')
 
     return start_time, end_time, issue_time
+
+
+# Get the shapes of US counties.
+def get_counties(data_crs):
+
+    data_file = 'https://prd-tnm.s3.amazonaws.com/StagedProducts/Small-scale/data/Boundaries/countyp010g.shp_nt00934.tar.gz'
+    if not os.path.isfile('spc/countyp010g/countyp010g.shp'):
+        file = data_file.split('/')[-1]
+        folder = file.split('.')[0]
+        with requests.get(data_file, stream=True) as r:
+            with open(file, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=128):
+                    f.write(chunk)
+
+        with tarfile.open(file, mode='r:gz') as tar_ref:
+            tar_ref.extractall(f'spc/{folder}')
+            tar_ref.close()
+
+    reader = shpreader.Reader('spc/countyp010g/countyp010g.shp')
+    counties = list(reader.geometries())
+
+    COUNTIES = cfeature.ShapelyFeature(counties, data_crs)
+
+    return COUNTIES
 
 
 # Get the country outlines of Mexico and Canada for the map.
@@ -706,7 +730,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                         inside_upper_list.append(u_risk.touches(l_risk))
 
                         # Report differences
-                        print(f'\nTouches: {t1}')
+                        print(f'\nANY Touches: {t1}')
                         print(f'Touches 2: {t2}')
                         print(f'Intersects: {i1}')
                         print(f'Intersects 2: {i2}\n')
@@ -722,11 +746,13 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             other_polygons_list = []
             for i in range(len(lower_polygon)):
                 if lower_is_within_upper_list[i]==True:
+                    upper_extent = upper_category.bounds
                     cat_extent = lower_polygon[i].bounds
-                    bounds_list.append([float(cat_extent[0])-1,
-                                    float(cat_extent[2])+1,
-                                    float(cat_extent[1])-1,
-                                    float(cat_extent[3])+1 ])
+                    bounds_list.append([
+                            min(upper_extent[0]-1,float(cat_extent[0])-1),
+                            max(upper_extent[2]+1,float(cat_extent[2])+1),
+                            min(upper_extent[1]-1,float(cat_extent[1])-1),
+                            max(upper_extent[3]+1,float(cat_extent[3])+1) ])
                 else:
                     other_polygons_list.append(lower_polygon[i])
                     cat_extent = lower_polygon[i].bounds
@@ -803,7 +829,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         #   Helps speed up the smoothing process.
         #
 
-        shpfilename = shpreader.natural_earth(resolution='10m',
+        shpfilename = shpreader.natural_earth(resolution='50m',
                                               category='cultural',
                                               name='admin_0_countries')
         reader = shpreader.Reader(shpfilename)
@@ -990,7 +1016,38 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     elif plot_type=='smooth': ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=2,edgecolor='k')
     ax.add_feature(cfeature.LAND.with_scale('50m'),facecolor='w')
     ax.add_feature(cfeature.COASTLINE.with_scale('50m'))
+
+    # Add major roads
+    #roads = cfeature.NaturalEarthFeature('cultural','roads','10m')
+    #ax.add_feature(roads,edgecolor=(0,0,0,0.2),facecolor='none')
+
+    # Show urban areas
+    urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
+    ax.add_feature(urban,facecolor=(0,0,0,0.2))
+
+    # Add text labels for select cities
+    """
+    names = shpreader.natural_earth(resolution='50m', category='cultural', name='populated_places_simple')
+    shp = shpreader.Reader(names)
+    shp = [shp for shp in shp.records() if shp.attributes['adm0name']=='United States of America']
+    name = [pt.attributes['name'] for pt in shp]
+    x = [pt.attributes['longitude'] for pt in shp]
+    y = [pt.attributes['latitude'] for pt in shp]
+    for i,_ in enumerate(x):
+        plt.text(x[i],y[i],name[i],
+            horizontalalignment='center',
+            verticalalignment='top',
+            fontsize=8,
+            clip_on=True,
+            transform=data_crs)
+    """
+
+    # Show county borders
+    #COUNTIES = get_counties(data_crs)
+    #ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray', linewidth=0.25)
+
     ax.add_feature(cfeature.STATES.with_scale('50m'))
+
 
     # Add Mexico and Canada to mask output in those areas.
     mexico_canada = Mexico_Canada()
