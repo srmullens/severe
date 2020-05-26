@@ -1022,8 +1022,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     #ax.add_feature(roads,edgecolor=(0,0,0,0.2),facecolor='none')
 
     # Show urban areas
-    urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
-    ax.add_feature(urban,facecolor=(0,0,0,0.2))
+    #urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
+    #ax.add_feature(urban,facecolor=(0,0,0,0.2))
 
     # Add text labels for select cities
     """
