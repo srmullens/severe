@@ -54,19 +54,23 @@ where='data'
 setting = 'low'
 
 # Need a time, plot_type, and plot_day override?
-override = False
+override = True
 
 # What SPC day do you want to plot?
 plot_day = 1
 
 # What type of plot: 'exact' or 'smooth'
 plot_type_override = False
+get_average_override = False
 plot_type = 'smooth'
-if override: plot_type_override=override
 
 # Send tweet?
 send_tweet = True
-if override: send_tweet = False
+
+if override:
+    send_tweet = False
+    plot_type_override=True
+    get_average_override=True
 
 
 ########################
@@ -384,13 +388,13 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
 
 # Get the shapes of US counties.
 def get_counties(data_crs):
-
+    file_location = './spc/countyp010g/countyp010g.shp'
     data_file = 'https://prd-tnm.s3.amazonaws.com/StagedProducts/Small-scale/data/Boundaries/countyp010g.shp_nt00934.tar.gz'
-    if not os.path.isfile('spc/countyp010g/countyp010g.shp'):
+    if not os.path.isfile(file_location):
         file = data_file.split('/')[-1]
         folder = file.split('.')[0]
         with requests.get(data_file, stream=True) as r:
-            with open(file, 'wb') as f:
+            with open(f'spc/{folder}/{file}', 'wb') as f:
                 for chunk in r.iter_content(chunk_size=128):
                     f.write(chunk)
 
@@ -398,7 +402,10 @@ def get_counties(data_crs):
             tar_ref.extractall(f'spc/{folder}')
             tar_ref.close()
 
-    reader = shpreader.Reader('spc/countyp010g/countyp010g.shp')
+        if os.path.isfile(f'spc/{folder}/{file}'):
+            os.unlink(f'spc/{folder}/{file}')
+
+    reader = shpreader.Reader(file_location)
     counties = list(reader.geometries())
 
     COUNTIES = cfeature.ShapelyFeature(counties, data_crs)
@@ -408,10 +415,28 @@ def get_counties(data_crs):
 
 # Get the country outlines of Mexico and Canada for the map.
 def Mexico_Canada():
+
+    file_location = 'spc/ne_50m_admin_0_countries/ne_50m_admin_0_countries.shp'
+    if not os.path.isfile(file_location):
+        shpfilename = shpreader.natural_earth(resolution='50m',
+                                        category='cultural',
+                                        name='admin_0_countries')
+        orig_folder = shpfilename.split('/')[:-1]
+        file = shpfilename.split('/')[-1]
+        folder = file.split('.')[0]
+
+        for shp in glob.glob(f'{"/".join(orig_folder)}/{folder}.*'):
+            if not os.path.isdir(f'spc/{folder}'):
+                os.mkdir(f'spc/{folder}')
+            shutil.copy2(shp,f'spc/{folder}/{shp.split("/")[-1]}')
+
+    reader = shpreader.Reader(file_location)
+    """
     shpfilename = shpreader.natural_earth(resolution='50m',
-                                    category='cultural',
-                                    name='admin_0_countries')
+                                        category='cultural',
+                                        name='admin_0_countries')
     reader = shpreader.Reader(shpfilename)
+    """
     countries = list(reader.records())
 
     country_list = ['Mexico','Canada']
@@ -424,10 +449,27 @@ def Mexico_Canada():
 
 # Get the outlines of the Great Lakes for the map.
 def Great_Lakes():
+    file_location = 'spc/ne_50m_lakes/ne_50m_lakes.shp'
+    if not os.path.isfile(file_location):
+        shpfilename = shpreader.natural_earth(resolution='50m',
+                                          category='physical',
+                                          name='lakes')
+        orig_folder = shpfilename.split('/')[:-1]
+        file = shpfilename.split('/')[-1]
+        folder = file.split('.')[0]
+
+        for shp in glob.glob(f'{"/".join(orig_folder)}/{folder}.*'):
+            if not os.path.isdir(f'spc/{folder}'):
+                os.mkdir(f'spc/{folder}')
+            shutil.copy2(shp,f'spc/{folder}/{shp.split("/")[-1]}')
+
+    reader = shpreader.Reader(file_location)
+    """
     shpfilename = shpreader.natural_earth(resolution='50m',
                                       category='physical',
                                       name='lakes')
     reader = shpreader.Reader(shpfilename)
+    """
     all_lakes = list(reader.records())
 
     list_of_lakes = ['Lake Superior','Lake Huron','Lake Michigan','Lake Erie','Lake Ontario']
@@ -921,7 +963,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         x,y,category,US_mask,grids = trim_to_extent(x,y,category,US_mask,extent)
 
         # Smooth the categories.
-        category = get_average_values(x,y,category,US_mask,grids)
+        if not get_average_override:
+            category = get_average_values(x,y,category,US_mask,grids)
 
         if where=='data':
             leg_loc = legend_location(category)
@@ -1014,7 +1057,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     ####################
     print('  --> Adding cfeatures')
 
-    if plot_type=='smooth': num_grids = category.shape[0] * category.shape[1]
+    num_grids = int(round( (((extent[3]-extent[2])*10)+(2*grids)+1) *
+                            (((extent[1]-extent[0])*10)+(2*grids)+1) ))
 
     # Ocean, Land, Coastline
     if plot_type=='exact': ax.add_feature(cfeature.OCEAN.with_scale('50m'))
@@ -1022,10 +1066,29 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     ax.add_feature(cfeature.LAND.with_scale('50m'),facecolor='w')
     ax.add_feature(cfeature.COASTLINE.with_scale('50m'))
 
-    if plot_type=='smooth' and num_grids<=(170*170):
-        # Add major roads
-        roads_shp = shpreader.natural_earth(resolution='10m',category='cultural',name='roads')
-        roads_reader = shpreader.Reader(roads_shp)
+
+    # Add major roads
+    if plot_day==1 and len(cat_gdf)>3 and plot_type=='smooth' and num_grids<=(170*170):
+
+        file_location = 'spc/ne_10m_roads/ne_10m_roads.shp'
+        if not os.path.isfile(file_location):
+            shpfilename = shpreader.natural_earth(resolution='10m',
+                                              category='cultural',
+                                              name='roads')
+            orig_folder = shpfilename.split('/')[:-1]
+            file = shpfilename.split('/')[-1]
+            folder = file.split('.')[0]
+
+            for shp in glob.glob(f'{"/".join(orig_folder)}/{folder}.*'):
+                if not os.path.isdir(f'spc/{folder}'):
+                    os.mkdir(f'spc/{folder}')
+                shutil.copy2(shp,f'spc/{folder}/{shp.split("/")[-1]}')
+
+        roads_reader = shpreader.Reader(file_location)
+
+        #roads_shp = shpreader.natural_earth(resolution='10m',category='cultural',name='roads')
+        #roads_reader = shpreader.Reader(roads_shp)
+
         roads = list(roads_reader.records())
         roads = [road for road in roads
                     if road.attributes['sov_a3']=='USA'
@@ -1041,22 +1104,30 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
             ax.add_geometries([rd_buffer],crs=data_crs,facecolor=(1,1,1),edgecolor='none')
             ax.add_geometries([rd],crs=data_crs,facecolor='none',edgecolor=(0,0,0))
 
-    if plot_type=='smooth' and num_grids<=(140*140):
-        # Show urban areas
-        urban = cfeature.NaturalEarthFeature('cultural','urban_areas','10m')
-        ax.add_feature(urban,facecolor=(0,0,0,0.2))
-    elif plot_type=='smooth' and num_grids<=(275*275):
-        # Show urban areas
-        urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
-        ax.add_feature(urban,facecolor=(0,0,0,0.2))
+
+    # Show county borders
+    if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth' and num_grids<=(170*170):
+        COUNTIES = get_counties(data_crs)
+        ax.add_feature(COUNTIES, facecolor='none', edgecolor='dimgray', linewidth=0.25)
 
 
-    if plot_type=='smooth' and num_grids<=(275*275):
+    # Show urban areas
+    if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth':
+        if num_grids<=(140*140):
+            urban = cfeature.NaturalEarthFeature('cultural','urban_areas','10m')
+            ax.add_feature(urban,facecolor=(0,0,0,0.2))
+        elif num_grids<=(275*275):
+            urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
+            ax.add_feature(urban,facecolor=(0,0,0,0.2))
+
+
+    # Add text labels for select cities
+    if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth' and num_grids<=(275*275):
         if num_grids<=(140*140): rank = 6
         elif num_grids<=(170*170): rank = 4
         elif num_grids<=(200*200): rank = 3
         elif num_grids<=(275*275): rank = 2
-        # Add text labels for select cities
+
         names_shp = shpreader.natural_earth(resolution='10m', category='cultural', name='populated_places_simple')
         names_reader = shpreader.Reader(names_shp)
 
@@ -1080,11 +1151,6 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                 clip_on=True,
                 bbox={'facecolor':'white','edgecolor':'none','alpha':0.5,'pad':1},
                 transform=data_crs)
-
-    if plot_type=='smooth' and num_grids<=(170*170):
-        # Show county borders
-        COUNTIES = get_counties(data_crs)
-        ax.add_feature(COUNTIES, facecolor='none', edgecolor='dimgray', linewidth=0.25)
 
 
     # Show states
