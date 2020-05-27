@@ -54,7 +54,7 @@ where='data'
 setting = 'low'
 
 # Need a time, plot_type, and plot_day override?
-override = False
+override = True
 
 # What SPC day do you want to plot?
 plot_day = 1
@@ -66,6 +66,7 @@ if override: plot_type_override=override
 
 # Send tweet?
 send_tweet = True
+if override: send_tweet = False
 
 
 ########################
@@ -807,7 +808,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         start_timer = dt.now()
         print('\n\n--> Make grid')
 
-        # Make a grid of 0.01x0.01 degrees that covers the CONUS.
+        # Make a grid of 0.1x0.1 degrees that covers the CONUS.
         #   CONUS covers N,S,W,E: 50,24,-125,-66
 
         if setting=='high':
@@ -1012,40 +1013,81 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     # Add map features #
     ####################
     print('  --> Adding cfeatures')
+
+    if plot_type=='smooth': num_grids = category.shape[0] * category.shape[1]
+
+    # Ocean, Land, Coastline
     if plot_type=='exact': ax.add_feature(cfeature.OCEAN.with_scale('50m'))
     elif plot_type=='smooth': ax.add_feature(cfeature.OCEAN.with_scale('50m'),zorder=2,edgecolor='k')
     ax.add_feature(cfeature.LAND.with_scale('50m'),facecolor='w')
     ax.add_feature(cfeature.COASTLINE.with_scale('50m'))
 
-    # Add major roads
-    #roads = cfeature.NaturalEarthFeature('cultural','roads','10m')
-    #ax.add_feature(roads,edgecolor=(0,0,0,0.2),facecolor='none')
+    if plot_type=='smooth' and num_grids<=(170*170):
+        # Add major roads
+        roads_shp = shpreader.natural_earth(resolution='10m',category='cultural',name='roads')
+        roads_reader = shpreader.Reader(roads_shp)
+        roads = list(roads_reader.records())
+        roads = [road for road in roads
+                    if road.attributes['sov_a3']=='USA'
+                    and road.attributes['type'] in ['Major Highway','Beltway']
+                    and road.attributes['scalerank']<=7]
+        roads = [rd.geometry for rd in roads]
 
-    # Show urban areas
-    #urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
-    #ax.add_feature(urban,facecolor=(0,0,0,0.2))
+        #records = [rd for rd in roads_reader.records()]
+        #print(set([rd.attributes['scalerank'] for rd in records]))
 
-    # Add text labels for select cities
-    """
-    names = shpreader.natural_earth(resolution='50m', category='cultural', name='populated_places_simple')
-    shp = shpreader.Reader(names)
-    shp = [shp for shp in shp.records() if shp.attributes['adm0name']=='United States of America']
-    name = [pt.attributes['name'] for pt in shp]
-    x = [pt.attributes['longitude'] for pt in shp]
-    y = [pt.attributes['latitude'] for pt in shp]
-    for i,_ in enumerate(x):
-        plt.text(x[i],y[i],name[i],
-            horizontalalignment='center',
-            verticalalignment='top',
-            fontsize=8,
-            clip_on=True,
-            transform=data_crs)
-    """
+        for rd in roads:
+            rd_buffer = rd.buffer(0.015)
+            ax.add_geometries([rd_buffer],crs=data_crs,facecolor=(1,1,1),edgecolor='none')
+            ax.add_geometries([rd],crs=data_crs,facecolor='none',edgecolor=(0,0,0))
 
-    # Show county borders
-    #COUNTIES = get_counties(data_crs)
-    #ax.add_feature(COUNTIES, facecolor='none', edgecolor='gray', linewidth=0.25)
+    if plot_type=='smooth' and num_grids<=(140*140):
+        # Show urban areas
+        urban = cfeature.NaturalEarthFeature('cultural','urban_areas','10m')
+        ax.add_feature(urban,facecolor=(0,0,0,0.2))
+    elif plot_type=='smooth' and num_grids<=(275*275):
+        # Show urban areas
+        urban = cfeature.NaturalEarthFeature('cultural','urban_areas','50m')
+        ax.add_feature(urban,facecolor=(0,0,0,0.2))
 
+
+    if plot_type=='smooth' and num_grids<=(275*275):
+        if num_grids<=(140*140): rank = 6
+        elif num_grids<=(170*170): rank = 4
+        elif num_grids<=(200*200): rank = 3
+        elif num_grids<=(275*275): rank = 2
+        # Add text labels for select cities
+        names_shp = shpreader.natural_earth(resolution='10m', category='cultural', name='populated_places_simple')
+        names_reader = shpreader.Reader(names_shp)
+
+        records = [rd for rd in names_reader.records()]
+        #print(records[0])
+        #print(set([rd.attributes['labelrank'] for rd in records]))
+
+        #for i in range(11):
+        #    names = [shp for shp in names_reader.records() if shp.attributes['adm0name']=='United States of America' and shp.attributes['scalerank']==i]
+        #    print(i,len(names))
+
+        names = [shp for shp in names_reader.records() if shp.attributes['adm0name']=='United States of America' and shp.attributes['scalerank']<=rank]
+        name = [pt.attributes['name'] for pt in names]
+        x = [pt.attributes['longitude'] for pt in names]
+        y = [pt.attributes['latitude'] for pt in names]
+        for i,_ in enumerate(x):
+            plt.text(x[i],y[i],name[i],
+                horizontalalignment='center',
+                verticalalignment='top',
+                fontsize=8,
+                clip_on=True,
+                bbox={'facecolor':'white','edgecolor':'none','alpha':0.5,'pad':1},
+                transform=data_crs)
+
+    if plot_type=='smooth' and num_grids<=(170*170):
+        # Show county borders
+        COUNTIES = get_counties(data_crs)
+        ax.add_feature(COUNTIES, facecolor='none', edgecolor='dimgray', linewidth=0.25)
+
+
+    # Show states
     ax.add_feature(cfeature.STATES.with_scale('50m'))
 
 
@@ -1058,6 +1100,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     great_lakes = Great_Lakes()
     for lake in great_lakes:
         ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'], edgecolor='k' )
+
 
     # Legend, Title, Attribution #
     ##############################
