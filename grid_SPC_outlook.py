@@ -1151,7 +1151,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         x = [pt.attributes['longitude'] for pt in names]
         y = [pt.attributes['latitude'] for pt in names]
         for i,_ in enumerate(x):
-            plt.text(x[i],y[i],name[i],
+            ax.text(x[i],y[i],name[i],
                 horizontalalignment='center',
                 verticalalignment='top',
                 fontsize=8,
