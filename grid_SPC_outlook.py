@@ -5,17 +5,21 @@
 # Code by: Stephen Mullens                                     #
 # May 2020                                                     #
 #                                                              #
-# Code inspired by https://github.com/frontogenesis/metpy/     #
-#   look at .ipynb_checkpoints/SPC Outlooks-checkpoint.ipynb   #
-#   and at .ipynb_checkpoints/download_shapes-checkpoint.ipynb #
+# Code inspired by:                                            #
+#   Twitter: @betelbot and https://github.com/hippke/betelbot  #
+#       and                                                    #
+#   https://github.com/frontogenesis/metpy/.ipynb_checkpoints/ #
+#       look at SPC Outlooks-checkpoint.ipynb                  #
+#       and at download_shapes-checkpoint.ipynb                #
+#                                                              #
+# See guiding map making principles at:                        #
+#   https://github.com/srmullens/map_making_principles         #
 ################################################################
 
 import requests
 from contextlib import closing
 import zipfile, tarfile
-import os
-import glob
-import shutil
+import os, glob, shutil
 import numpy as np
 import pandas as pd
 from math import degrees, radians, cos, sin, asin, sqrt
@@ -54,7 +58,7 @@ where='data'
 setting = 'low'
 
 # Need a time, plot_type, and plot_day override?
-override = True
+override = False
 
 # What SPC day do you want to plot?
 plot_day = 1
@@ -1069,6 +1073,10 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Add major roads
     if plot_day==1 and len(cat_gdf)>3 and plot_type=='smooth' and num_grids<=(170*170):
+        if num_grids<=(130*130): rank = 7
+        elif num_grids<=(140*140): rank = 6
+        elif num_grids<=(160*160): rank = 5
+        elif num_grids<=(170*170): rank = 4
 
         file_location = 'spc/ne_10m_roads/ne_10m_roads.shp'
         if not os.path.isfile(file_location):
@@ -1093,7 +1101,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         roads = [road for road in roads
                     if road.attributes['sov_a3']=='USA'
                     and road.attributes['type'] in ['Major Highway','Beltway']
-                    and road.attributes['scalerank']<=7]
+                    and road.attributes['scalerank']<=rank]
         roads = [rd.geometry for rd in roads]
 
         #records = [rd for rd in roads_reader.records()]
@@ -1106,14 +1114,14 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
 
     # Show county borders
-    if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth' and num_grids<=(170*170):
+    if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth' and num_grids<=(180*180):
         COUNTIES = get_counties(data_crs)
         ax.add_feature(COUNTIES, facecolor='none', edgecolor='dimgray', linewidth=0.25)
 
 
     # Show urban areas
     if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth':
-        if num_grids<=(140*140):
+        if num_grids<=(160*160):
             urban = cfeature.NaturalEarthFeature('cultural','urban_areas','10m')
             ax.add_feature(urban,facecolor=(0,0,0,0.2))
         elif num_grids<=(275*275):
@@ -1124,9 +1132,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     # Add text labels for select cities
     if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth' and num_grids<=(275*275):
         if num_grids<=(140*140): rank = 6
-        elif num_grids<=(170*170): rank = 4
-        elif num_grids<=(200*200): rank = 3
-        elif num_grids<=(275*275): rank = 2
+        elif num_grids<=(160*160): rank = 4
+        elif num_grids<=(275*275): rank = 3
 
         names_shp = shpreader.natural_earth(resolution='10m', category='cultural', name='populated_places_simple')
         names_reader = shpreader.Reader(names_shp)
