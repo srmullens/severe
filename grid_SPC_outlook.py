@@ -54,7 +54,7 @@ where='data'
 setting = 'low'
 
 # Need a time, plot_type, and plot_day override?
-override = True
+override = False
 
 # What SPC day do you want to plot?
 plot_day = 1
