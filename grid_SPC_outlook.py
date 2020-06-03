@@ -239,7 +239,7 @@ def combined_extent(*args):
 def size_check(l_risk,u_risk):
     # Want size of l_risk + u_risk.
     lu_risk = l_risk.union(u_risk)
-
+    print(u_risk.bounds[1],u_risk.bounds[3])
     # Convert u_risk polygon to projected equal area coordinates (eac).
     u_eac = sops.transform(
                 partial(
