@@ -22,10 +22,14 @@ import zipfile, tarfile
 import os, glob, shutil
 import numpy as np
 import pandas as pd
+import itertools
 from math import degrees, radians, cos, sin, asin, sqrt
 
 import geopandas
 import shapely.vectorized
+import shapely.ops as sops
+import shapely.geometry as sg
+from shapely.geometry import Polygon
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -57,19 +61,23 @@ where='data'
 # What resolution do you want? 'low', 'mid', 'high'
 setting = 'low'
 
-# Need a time, plot_type, and plot_day override?
-override = False
-
 # What SPC day do you want to plot?
+#   Current Operational Data (int between 1-8)
 plot_day = 1
+#   Archived date and time: ['YYYYMMDD','HHMM',int between 1-8]
+#   Archived date must be 2020, due to SPC shapefile formatting.
+#plot_day = ['20200523','2000',1]
 
 # What type of plot: 'exact' or 'smooth'
-plot_type_override = False
-get_average_override = False
 plot_type = 'smooth'
 
 # Send tweet?
 send_tweet = True
+
+# Need a plot_day, smoothing, and plot_type override?
+override = False                # Master 'override' flag
+plot_type_override = False      # Independent of master 'override' flag.
+get_average_override = False    # Smoothing
 
 if override:
     send_tweet = False
@@ -77,9 +85,28 @@ if override:
     get_average_override=True
 
 
+
 ########################
 # Make some functions. #
 ########################
+
+# Clears all contents of folder specified in the argument
+def clear_folder_contents(folder):
+
+    folder = f'{folder}/'
+    extensions = ['.zip','.dbf','.prj','.shp','.shx']
+    last = ['-shp']
+
+    for file in os.listdir(folder):
+        file_path = os.path.join(folder, file)
+        try:
+            if os.path.isfile(file_path) and file[-4] in extensions:
+                os.unlink(file_path)
+            elif os.path.isdir(file_path) and file[-4] in last:
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(e)
+
 
 # Downloads a zip file and extracts it in a target directory of choice
 def download_zip_files(issuing_center,product,shapefiles):
@@ -87,29 +114,142 @@ def download_zip_files(issuing_center,product,shapefiles):
         for product in shapefiles[issuing_center]:
             download_zip_file(file_url = shapefiles[issuing_center][product], root_folder = issuing_center)
 
+    # Move the zip file to an appropriate folder.
     for zip_file in glob.glob(f'{os.getcwd()}/*.zip'):
         head, tail = os.path.split(zip_file)
         shutil.move(zip_file, f'zips/{tail}')
 
 
+# Download the specified ZIP file, extract everything, rename it.
 def download_zip_file(file_url, root_folder):
+    # Check the inputs are the appropriate data type
     if not isinstance(file_url,str):
         raise TypeError(f'file URL must by type string, not {type(file_url)}')
     if not isinstance(root_folder,str):
         raise TypeError(f'folder must by type string, not {type(root_folder)}')
 
+    # Get the bits needed for processing.
     file = file_url.split('/')[-1]
     folder = file.split('.')[0]
+    remove_chars = folder[8:-4]
+    folder = folder.replace(remove_chars,'')
 
+    # Download the ZIP file.
     with requests.get(file_url, stream=True) as r:
         with open(file, 'wb') as f:
             for chunk in r.iter_content(chunk_size=128):
                 f.write(chunk)
 
-
+    # Extract all the files from the ZIP file.
     with zipfile.ZipFile(file, 'r') as zip_ref:
         zip_ref.extractall(f'{root_folder}/{folder}')
         zip_ref.close()
+
+    # Rename all the files to uniform naming system.
+    mypath = f'spc/{folder}/'
+    files = [os.path.join(mypath,f) for f in os.listdir(mypath)
+                if os.path.isfile(os.path.join(mypath, f))]
+    for j,file in enumerate(files):
+        new_fname = file.replace(remove_chars,'')
+        shutil.move(file,new_fname)
+
+
+# Get the polygon for a categorical risk.
+#   If no polygon exists, create one near the equator 
+#   that won't overlap with anything else.
+def get_polygons(gdf,loc):
+    if len(gdf)>=loc+1:
+        gdf_loc = gdf.iloc[loc]
+        gdf_geom = gdf_loc['geometry']
+        if gdf_geom.geom_type == 'MultiPolygon':
+            polygons = [polygon for polygon in gdf_geom]
+        else:
+            polygons = [gdf_geom]
+        return polygons
+    else:
+        polygon =  Polygon([ [0+2*loc, 0+2*loc],
+                             [1+2*loc, 0+2*loc],
+                             [1+2*loc, 1+2*loc],
+                             [0+2*loc, 1+2*loc] ])
+        polygons = [polygon]
+        return polygons
+
+
+# Determine if one polygon is inside the other.
+#   Probably helps if polygons listed in order of increasing risk,
+#   but that may not be strictly necessary.
+def this_contains_that(*args):
+    # Make one polygon out of the 2 or 3 polygons in the list.
+    if len(args)==2:
+        union_boundary = args[1].union(args[0]).boundary
+    elif len(args)==3:
+        union_01 = args[1].union(args[0])
+        union_boundary = args[2].union(union_01).boundary
+    elif len(args)==4:
+        union_01 = args[1].union(args[0])
+        union_012 = union_01.union(args[2])
+        union_boundary = args[3].union(union_012).boundary
+    else:
+        raise RuntimeWarning(f'Must contain either 2 or 3 polygons. You gave {len(args)} polygons.')
+
+    # If that produces one boundary...
+    if union_boundary.geom_type == 'LineString':
+        # ...is it in a simple circle?
+        inside_upper = union_boundary.is_ring
+
+    # If that produces two boundaries...
+    elif union_boundary.geom_type == 'MultiLineString':
+        ubx = []
+
+        # ...make polygons of them
+        for line in union_boundary:
+            coordinates=[]
+            for index, point in enumerate(line.coords):
+                if index == 0: first_pt = point
+                coordinates.append(point)
+            coordinates.append(first_pt)
+
+            if len(coordinates) >= 3:
+                polygon = Polygon(coordinates)
+                ubx.append(polygon)
+
+        # ...and see if one is within the other.
+        inside_or_outside = [ubx[-1].within(ubx[0]),
+                             ubx[0].within(ubx[-1])]
+
+        inside_upper = any(inside_or_outside)
+
+    return inside_upper
+
+
+# Return the extent of several polygons, making sure they are all included.
+def combined_extent(*args):
+    arg_bounds = [arg.bounds for arg in args]
+    west = min([float(ab[0])-1 for ab in arg_bounds])
+    south = min([float(ab[1])-1 for ab in arg_bounds])
+    east = max([float(ab[2])+1 for ab in arg_bounds])
+    north = max([float(ab[3])+1 for ab in arg_bounds])
+    combined_bounds = [west,east,south,north]
+    return combined_bounds
+
+
+# Take the list of extents, keep the unique ones, and order them.
+def keep_unique_extents(extents_list,order):
+    # Copy the original list, so it doesn't change.
+    extents_copy = extents_list.copy()
+
+    # Order the original list in highest to lowest risk.
+    extents_ordered = [x for _,x in sorted(zip(order,extents_copy))]
+
+    # Remove duplicate extents.
+    unique_extents = extents_ordered.copy()
+    unique_extents.sort()
+    unique_extents = list(k for k,_ in itertools.groupby(unique_extents))
+
+    # Re-order the unique extents to match be in the most to least important order.
+    unique_extents = [x for _,x in sorted(zip(extents_ordered,unique_extents))]
+
+    return unique_extents
 
 
 # Gets shapefile records from natural earth website
@@ -140,54 +280,6 @@ def get_shapes_list(res,cat,name):
     list_to_return = list(reader.records())
 
     return list_to_return
-
-
-# Clears all contents of folder specified in the argument
-def clear_folder_contents(folder):
-
-    folder = f'{folder}/'
-    extensions = ['.zip','.dbf','.prj','.shp','.shx']
-    last = ['-shp']
-
-    for file in os.listdir(folder):
-        file_path = os.path.join(folder, file)
-        try:
-            if os.path.isfile(file_path) and file[-4] in extensions:
-                os.unlink(file_path)
-            elif os.path.isdir(file_path) and file[-4] in last:
-                shutil.rmtree(file_path)
-        except Exception as e:
-            print(e)
-
-
-# Calculate how many grids 25km is
-def dist_in_grids(x,extent):
-
-    resolution = round(x[0,1]-x[0,0],2)
-
-    # Largest distance is determined by northernmost latitude
-    lat = extent[3]
-
-    # Calculate the distance in degrees.
-    #   Source: https://stackoverflow.com/questions/3182260/python-geocode-filtering-by-distance
-    #   Derived from: http://janmatuschek.de/LatitudeLongitudeBoundingCoordinates
-    #   WARNING: problems if North/South Pole is in circle of interest
-    #   WARNING: problems if longitude meridian +/-180 degrees intersects circle of interest
-    distance_km = 25
-    Earth_radius_km = 6371.0
-    RADIUS = Earth_radius_km
-    dlat = distance_km / RADIUS
-    dlon = asin(sin(dlat) / cos(radians(lat)))
-
-    # Conver the degrees to grid points.
-    dy = round(degrees(dlat) / resolution * 10,0)
-    dx = round(degrees(dlon) / resolution * 10,0)
-    grids = max(dx,dy)
-    print(f'  --> Res: {resolution}')
-    print(f'  --> Grids in 25mi: {int(grids)} ({int(dx)} vs {int(dy)})')
-
-    return grids
-
 
 
 # Trim datasets to right around the extent of the map for easier plotting.
@@ -315,6 +407,58 @@ def get_average_values(x,y,data,mask,grids):
     return smooth_data
 
 
+# Determine an ideal legend location.
+def legend_location(category,mask):
+    print('--> Determining Legend Location')
+
+    # Get items for slicing the array
+    height,width = category.shape
+    dh = int(round(height*0.33,0))
+    dw = int(round(width*0.33,0))
+
+    # Mask array to US coast
+    ma_category = np.ma.masked_where(np.logical_not(mask),category)
+
+    # Max category within the slice.
+    upper_right_max = np.amax(ma_category[height-dh:height,width-dw:width])
+    upper_left_max = np.amax(ma_category[height-dh:height,0:dw])
+    lower_right_max = np.amax(ma_category[0:dh,width-dw:width])
+    lower_left_max = np.amax(ma_category[0:dh,0:dw])
+    max_corners = [lower_right_max,lower_left_max,upper_right_max,upper_left_max]
+
+    # Sum of category values across the slice.
+    upper_right_sum = np.sum(ma_category[height-dh:height,width-dw:width])
+    upper_left_sum = np.sum(ma_category[height-dh:height,0:dw])
+    lower_right_sum = np.sum(ma_category[0:dh,width-dw:width])
+    lower_left_sum = np.sum(ma_category[0:dh,0:dw])
+    sum_corners = [lower_right_sum,lower_left_sum,upper_right_sum,upper_left_sum]
+
+    print(f'    --> lower right: Max: {lower_right_max:.1f}  Sum: {lower_right_sum:.2f}')
+    print(f'    --> lower left: Max: {lower_left_max:.1f}  Sum: {lower_left_sum:.2f}')
+    print(f'    --> upper right: Max: {upper_right_max:.1f}  Sum: {upper_right_sum:.2f}')
+    print(f'    --> upper left: Max: {upper_left_max:.1f}  Sum: {upper_left_sum:.2f}')
+
+    # List of legend locations corresponding to the corners in max_corners and sum_corners.
+    corners = [4,3,1,2]
+
+    # Sort legend locations by max category at any pixel. Lowest to highest.
+    #   Do the same with sum_corners.
+    corners_sort_by_low_max = [c for _,c in sorted(zip(max_corners,corners), key=lambda pair: pair[0])]
+    sum_corners = [c for _,c in sorted(zip(max_corners,sum_corners), key=lambda pair: pair[0])]
+
+    # Trim lists to locations with equivalently lowest max category at each pixel.
+    #   Maybe there are two corners that max out at the second category.
+    corners_sort_by_low_max = corners_sort_by_low_max[:max_corners.count(max_corners[0])]
+    sum_corners = sum_corners[:max_corners.count(max_corners[0])]
+
+    # Sort remaining corner locations by sum of categories across all pixels.
+    leg_loc = [ll for _,ll in sorted(zip(sum_corners,corners_sort_by_low_max), key=lambda pair: pair[0])][0]
+
+    print(f' --> Legend location: {leg_loc}')
+
+    return leg_loc
+
+
 # Convert time zones for printing
 #   start_time gets used in the title on the map.
 #   end_time isn't used right now, but it's included here just in case.
@@ -420,10 +564,40 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
     return start_time, end_time, issue_time
 
 
+# Calculate how many grids 25km is
+def dist_in_grids(x,extent):
+
+    resolution = round(x[0,1]-x[0,0],2)
+
+    # Largest distance is determined by northernmost latitude
+    lat = extent[3]
+
+    # Calculate the distance in degrees.
+    #   Source: https://stackoverflow.com/questions/3182260/python-geocode-filtering-by-distance
+    #   Derived from: http://janmatuschek.de/LatitudeLongitudeBoundingCoordinates
+    #   WARNING: problems if North/South Pole is in circle of interest
+    #   WARNING: problems if longitude meridian +/-180 degrees intersects circle of interest
+    distance_km = 25
+    Earth_radius_km = 6371.0
+    RADIUS = Earth_radius_km
+    dlat = distance_km / RADIUS
+    dlon = asin(sin(dlat) / cos(radians(lat)))
+
+    # Conver the degrees to grid points.
+    dy = round(degrees(dlat) / resolution * 10,0)
+    dx = round(degrees(dlon) / resolution * 10,0)
+    grids = max(dx,dy)
+    print(f'  --> Res: {resolution}')
+    print(f'  --> Grids in 25mi: {int(grids)} ({int(dx)} vs {int(dy)})')
+
+    return grids
+
+
 # Get the shapes of US counties.
 def get_counties(data_crs):
     file_location = './spc/countyp010g/countyp010g.shp'
     data_file = 'https://prd-tnm.s3.amazonaws.com/StagedProducts/Small-scale/data/Boundaries/countyp010g.shp_nt00934.tar.gz'
+    # If there is no local file, download it.
     if not os.path.isfile(file_location):
         file = data_file.split('/')[-1]
         folder = file.split('.')[0]
@@ -438,10 +612,10 @@ def get_counties(data_crs):
 
         if os.path.isfile(f'spc/{folder}/{file}'):
             os.unlink(f'spc/{folder}/{file}')
-
+    # Read local file and get county geometries.
     reader = shpreader.Reader(file_location)
     counties = list(reader.geometries())
-
+    # Make a shapely feature to plot.
     COUNTIES = cfeature.ShapelyFeature(counties, data_crs)
 
     return COUNTIES
@@ -449,10 +623,12 @@ def get_counties(data_crs):
 
 # Get the country outlines of Mexico and Canada for the map.
 def Mexico_Canada():
+    # Get country shapes.
     countries = get_shapes_list('50m','cultural','admin_0_countries')
+    # Get Mexico and Canada's shapes.
     country_list = ['Mexico','Canada']
-
     MC = [country for country in countries if country.attributes['NAME_EN'] in country_list]
+    # Make a list of the geometries for these countries.
     Mex_Can = [mc.geometry for mc in MC]
 
     return Mex_Can
@@ -460,65 +636,15 @@ def Mexico_Canada():
 
 # Get the outlines of the Great Lakes for the map.
 def Great_Lakes():
+    # Get lake shapes.
     all_lakes = get_shapes_list('50m','physical','lakes')
+    # Get Great Lake's shapes.
     list_of_lakes = ['Lake Superior','Lake Huron','Lake Michigan','Lake Erie','Lake Ontario']
-
     GL = [lake for lake in all_lakes if lake.attributes['name'] in list_of_lakes]
+    # Make a list of teh geometries for these lakes.
     lakes = [gl.geometry for gl in GL]
 
     return lakes
-
-
-# Determine an ideal legend location.
-def legend_location(category,mask):
-    print('--> Determining Legend Location')
-
-    # Get items for slicing the array
-    height,width = category.shape
-    dh = int(round(height*0.33,0))
-    dw = int(round(width*0.33,0))
-
-    # Mask array to US coast
-    category = np.ma.masked_where(np.logical_not(mask),category)
-
-    # Max category within the slice.
-    upper_right_max = np.amax(category[height-dh:height,width-dw:width])
-    upper_left_max = np.amax(category[height-dh:height,0:dw])
-    lower_right_max = np.amax(category[0:dh,width-dw:width])
-    lower_left_max = np.amax(category[0:dh,0:dw])
-    max_corners = [lower_right_max,lower_left_max,upper_right_max,upper_left_max]
-
-    # Sum of category values across the slice.
-    upper_right_sum = np.sum(category[height-dh:height,width-dw:width])
-    upper_left_sum = np.sum(category[height-dh:height,0:dw])
-    lower_right_sum = np.sum(category[0:dh,width-dw:width])
-    lower_left_sum = np.sum(category[0:dh,0:dw])
-    sum_corners = [lower_right_sum,lower_left_sum,upper_right_sum,upper_left_sum]
-
-    print(f'    --> lower right: Max: {lower_right_max:.1f}  Sum: {lower_right_sum:.2f}')
-    print(f'    --> lower left: Max: {lower_left_max:.1f}  Sum: {lower_left_sum:.2f}')
-    print(f'    --> upper right: Max: {upper_right_max:.1f}  Sum: {upper_right_sum:.2f}')
-    print(f'    --> upper left: Max: {upper_left_max:.1f}  Sum: {upper_left_sum:.2f}')
-
-    # List of legend locations corresponding to the corners in max_corners and sum_corners.
-    corners = [4,3,1,2]
-
-    # Sort legend locations by max category at any pixel. Lowest to highest.
-    #   Do the same with sum_corners.
-    corners_sort_by_low_max = [c for _,c in sorted(zip(max_corners,corners), key=lambda pair: pair[0])]
-    sum_corners = [c for _,c in sorted(zip(max_corners,sum_corners), key=lambda pair: pair[0])]
-
-    # Trim lists to locations with equivalently lowest max category at each pixel.
-    #   Maybe there are two corners that max out at the second category.
-    corners_sort_by_low_max = corners_sort_by_low_max[:max_corners.count(max_corners[0])]
-    sum_corners = sum_corners[:max_corners.count(max_corners[0])]
-
-    # Sort remaining corner locations by sum of categories across all pixels.
-    leg_loc = [ll for _,ll in sorted(zip(sum_corners,corners_sort_by_low_max), key=lambda pair: pair[0])][0]
-
-    print(f' --> Legend location: {leg_loc}')
-
-    return leg_loc
 
 
 # Tweet the results.
@@ -570,14 +696,24 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
 
     print('--> Get the files')
 
-    if plot_day<4:
+    if isinstance(plot_day,int):
+        print('-->Getting operational data')
+        if plot_day<4:
+            shapefiles = {
+                'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/outlook/day{plot_day}otlk-shp.zip'}
+                        }
+        else:
+            shapefiles = {
+                'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/exper/day4-8/day{plot_day}prob-shp.zip'}
+                        }
+    elif isinstance(plot_day,list):
+        archive_ymd = plot_day[0]
+        archive_hm = plot_day[1]
+        plot_day = plot_day[2]
+        print('-->Getting archive: {archive_ymd}_{archive_hm}')
         shapefiles = {
-            'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/outlook/day{plot_day}otlk-shp.zip'}
-                    }
-    else:
-        shapefiles = {
-            'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/exper/day4-8/day{plot_day}prob-shp.zip'}
-                    }
+            'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/outlook/archive/{archive_ymd[:4]}/day{plot_day}otlk_{archive_ymd}_{archive_hm}-shp.zip'} }
+
     """
     shapefiles = {
         'spc': {
@@ -621,8 +757,8 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
     #   If it's not available, wait and try again.
     tries = 1
 
-    # For Day 1 and Day 2 forecasts...
-    if plot_day<3:
+    # For Day 1 and Day 3 forecasts...
+    if plot_day<4:
         while tries<30:
             # Download ZIP files
             for issuing_center in shapefiles:
@@ -643,7 +779,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                 print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                 tries+=30
 
-    # For Day 3 through Day 8 forecasts...
+    # For Day 4 through Day 8 forecasts...
     else:
         while tries<30:
             try:
@@ -690,6 +826,8 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
 
     ### MAP EXTENT, LEGEND LOCATION, AND COORDINATE REFERENCE SYSTEM ###
 
+    unique_extents = False
+
     # Set Coordinate Reference System, extent, and legend location for the map
     if plot_nothing or where=='CONUS':
         extent = [-125,-66,24,50]
@@ -702,19 +840,12 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
         leg_loc = 3
     elif where=='data':
         # Days 4-8, if there is any risk, calculate map extent.
-        if len(cat_gdf)==1 and plot_day>3:
-            # Get polygons for highest and second highest risk category.
-            only_category = cat_gdf.iloc[0]['geometry']
-
-            # Make a list of polygons for each category.
-            if only_category.geom_type == 'MultiPolygon':
-                multipolygon = only_category
-                upper_polygon = [polygon for polygon in multipolygon]
-            else:
-                upper_polygon = [only_category]
+        if len(cat_gdf)>=1 and plot_day>3:
+            # Get polygon for lowest risk category.
+            lowest_category = cat_gdf.iloc[0]['geometry']
 
             # Determine the extent.
-            cat_extent = only_category.bounds
+            cat_extent = lowest_category.bounds
             extent = [float(cat_extent[0])-1,
                         float(cat_extent[2])+1,
                         float(cat_extent[1])-1,
@@ -726,89 +857,149 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
         # Days 1-3, if there is at least a slight risk, calculate map extent.
         # Days 4-8, if there are two risks, calculate map extent.
         elif (plot_day<4 and len(cat_gdf)>2) or (plot_day>3 and len(cat_gdf)>1):
-            lower_is_within_upper_list = []
 
-            # Get polygons for highest and second highest risk category.
-            upper_category = cat_gdf.iloc[-1]['geometry']
-            lower_category = cat_gdf.iloc[-2]['geometry']
+            #0=TSTM; 1=MRGL; 2=SLGT; 3=ENH; 4=MDT; 5=HIGH
 
-            # Make a list of polygons for each category.
-            if lower_category.geom_type == 'MultiPolygon':
-                multipolygon = lower_category
-                lower_polygon = [polygon for polygon in multipolygon]
-            else:
-                lower_polygon = [lower_category]
+            new_extents=[]
+            order=[]
+            reply_polygons=[]
 
-            if upper_category.geom_type == 'MultiPolygon':
-                multipolygon = upper_category
-                upper_polygon = [polygon for polygon in multipolygon]
-            else:
-                upper_polygon = [upper_category]
+            # Get a list of polygons at each category from the shapefiles.
+            HIGHs = get_polygons(cat_gdf,5)
+            MDTs = get_polygons(cat_gdf,4)
+            ENHs = get_polygons(cat_gdf,3)
+            SLGTs = get_polygons(cat_gdf,2)
+            MRGLs = get_polygons(cat_gdf,1)
 
-            # Record whether each second-highest category has a highest category inside it.
-            for l_risk in lower_polygon:
-                inside_upper_list = []
-                for u_risk in upper_polygon:
-                    t1 = u_risk.touches(l_risk)
-                    t2 = l_risk.touches(u_risk)
-                    i1 = u_risk.intersects(l_risk)
-                    i2 = l_risk.intersects(u_risk)
-                    print(f'\n    Touches: {t1} {t2}')
-                    print(f'    Intersects: {i1} {i2}')
-                    print(f'    Withins: {l_risk.within(u_risk)} {u_risk.within(l_risk)}')
-                    print(f'    Intersections: {l_risk.intersection(u_risk).equals(u_risk)} {l_risk.intersection(u_risk).__eq__(u_risk)}')
-                    if all([t1,t2,i1,i2])==True:
-                        inside_upper_list.append(u_risk.touches(l_risk))
-                    elif all([t1,t2,i1,i2])==False:
-                        inside_upper_list.append(u_risk.touches(l_risk))
-                    elif any([t1,t2,i1,i2])==False:
-                        inside_upper_list.append(u_risk.touches(l_risk))
+            # Report at which levels polygons exist, and how many.
+            no_poly_zone = Polygon([ [0, 0],[12, 0],[12, 12],[0, 12] ])
+            nmrgl = f'{len(MRGLs)}' if any([not this_contains_that(MRGL,no_poly_zone) for MRGL in MRGLs]) else '-'
+            nslgt = f'{len(SLGTs)}' if any([not this_contains_that(SLGT,no_poly_zone) for SLGT in SLGTs]) else '-'
+            nenh = f'{len(ENHs)}' if any([not this_contains_that(ENH,no_poly_zone) for ENH in ENHs]) else '-'
+            nmdt = f'{len(MDTs)}' if any([not this_contains_that(MDT,no_poly_zone) for MDT in MDTs]) else '-'
+            nhigh = f'{len(HIGHs)}' if any([not this_contains_that(HIGH,no_poly_zone) for HIGH in HIGHs]) else '-'
+            print(f'\nlengths: M, S, E, M, H')
+            print(f' exists: {nmrgl}, {nslgt}, {nenh}, {nmdt}, {nhigh}')
 
-                        # Report differences
-                        print(f'\nANY Touches: {t1}')
-                        print(f'Touches 2: {t2}')
-                        print(f'Intersects: {i1}')
-                        print(f'Intersects 2: {i2}\n')
+            # Cycle through all the polygons, finding out what to plot.
+            for r,MRGL in enumerate(MRGLs):
+                for s,SLGT in enumerate(SLGTs):
+                    for e,ENH in enumerate(ENHs):
+                        for m,MDT in enumerate(MDTs):
+                            for h,HIGH in enumerate(HIGHs):
+                                one = this_contains_that(MDT,HIGH)
+                                two = this_contains_that(ENH,MDT,HIGH)
+                                three = this_contains_that(ENH,MDT)
+                                four = this_contains_that(SLGT,ENH,MDT,HIGH)
+                                five = this_contains_that(SLGT,ENH,MDT)
+                                six = this_contains_that(SLGT,ENH)
+                                seven = this_contains_that(MRGL,SLGT,ENH)
+                                eight = this_contains_that(MRGL,SLGT)
 
-                if any(inside_upper_list)==True: lower_is_within_upper_list.append(True)
-                else: lower_is_within_upper_list.append(False)
+                                high_exists = any([not this_contains_that(H,no_poly_zone) for H in HIGHs])
+                                mdt_exists = any([not this_contains_that(M,no_poly_zone) for M in MDTs])
+                                enh_exists = any([not this_contains_that(E,no_poly_zone) for E in ENHs])
 
-            # Include areas where the highest category exists in the map extent.
-            # Exclude locations where second-highest category does not contain
-            #   the highest category. 
-            bounds_list = []
-            other_bounds_list = []
-            other_polygons_list = []
-            for i in range(len(lower_polygon)):
-                if lower_is_within_upper_list[i]==True:
-                    upper_extent = upper_category.bounds
-                    cat_extent = lower_polygon[i].bounds
-                    bounds_list.append([
-                            min(upper_extent[0]-1,float(cat_extent[0])-1),
-                            max(upper_extent[2]+1,float(cat_extent[2])+1),
-                            min(upper_extent[1]-1,float(cat_extent[1])-1),
-                            max(upper_extent[3]+1,float(cat_extent[3])+1) ])
-                else:
-                    other_polygons_list.append(lower_polygon[i])
-                    cat_extent = lower_polygon[i].bounds
-                    other_bounds_list.append([float(cat_extent[0])-1,
-                                    float(cat_extent[2])+1,
-                                    float(cat_extent[1])-1,
-                                    float(cat_extent[3])+1 ])
+                                ### ZOOMED IN ###
 
-            # Accumulate the extent of the bounds...
-            bounds_W = min([i[0] for i in bounds_list])
-            bounds_E = max([i[1] for i in bounds_list])
-            bounds_S = min([i[2] for i in bounds_list])
-            bounds_N = max([i[3] for i in bounds_list])
+                                # if MDT contains HIGHs...
+                                if one:
+                                    # ...add MDT+HIGH extent
+                                    print(f'    MDT {m+1} contains HIGH {h+1}')
+                                    add_extent = combined_extent(MDT,HIGH)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(HIGH)
+                                    order.append(0)
+                                # if ENH contains MDT & HIGH, but MDT doesn’t contain HIGH.
+                                if not one and two and three:
+                                    # ...add MDT extent
+                                    print(f'    MDT {m+1} has no HIGH')
+                                    add_extent = combined_extent(MDT)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(MDT)
+                                    order.append(1)
+                                # if ENH doesn’t contain HIGH, and ENH contains MDT.
+                                if not two and three:
+                                    # ...add ENH+MDT extent
+                                    print(f'    ENH {e+1} contains MDT {m+1}')
+                                    add_extent = combined_extent(ENH,MDT)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(MDT)
+                                    order.append(2)
+                                # if SLGT contains ENH & MDT, but ENH doesn’t contain MDT.
+                                if not three and five and six:
+                                    # ...add ENH extent
+                                    print(f'    ENH {e+1} has no MDT')
+                                    add_extent = combined_extent(ENH)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(ENH)
+                                    order.append(3)
+                                # if SLGT contains ENH, and neither contain MDT.
+                                if not three and not five and six:
+                                    # ...add SLGT extent
+                                    print(f'    SLGT {s+1} contains ENH {e+1}')
+                                    add_extent = combined_extent(SLGT,ENH)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(ENH)
+                                    order.append(4)
+                                # if MRGL contains SLGT & ENH, but SLGT doesn't contain ENH.
+                                if not six and seven and eight:
+                                    # ...add SLGT extent
+                                    print(f'    SLGT {s+1} has no ENH')
+                                    add_extent = combined_extent(SLGT)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(SLGT)
+                                    order.append(5)
+                                # if MRGL contains SLGT, but neither contain ENH.
+                                if not six and not seven and eight and enh_exists:
+                                    # ... add SLGT extent
+                                    print(f'    SLGT {s+1} not in ENH')
+                                    add_extent = combined_extent(SLGT)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(SLGT)
+                                    order.append(6)
 
-            # ...and set those bounds as the map extent.
-            extent = [bounds_W,bounds_E,bounds_S,bounds_N]
-            print(f'  --> Extent: {extent}')
+                                ### ZOOMED OUT ###
 
-            # NOTE: legend location is determined later.
+                                # If SLGT contains HIGH.
+                                if four and high_exists:
+                                    print(f'    Zoomed out: SLGT {s+1} in HIGH')
+                                    add_extent = combined_extent(SLGT,ENH,MDT,HIGH)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(SLGT)
+                                    order.append(7)
+                                # If SLGT contains MDT.
+                                elif five and mdt_exists:
+                                    # ...add SLGT extent
+                                    print(f'    Zoomed out: SLGT {s+1} in MDT')
+                                    add_extent = combined_extent(SLGT,ENH,MDT)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(SLGT)
+                                    order.append(8)
+
+                                ### ONLY SLIGHT ###
+
+                                # if MRGL contains SLGT, and there is no ENH+.
+                                if eight and not enh_exists:
+                                    # ... add MRGL+SLGT extent
+                                    print(f'    MRGL {r+1} contains SLGT {s+1}')
+                                    add_extent = combined_extent(MRGL,SLGT)
+                                    new_extents.append(add_extent)
+                                    reply_polygons.append(SLGT)
+                                    order.append(9)
+
+            # Remove extent duplicates and order from highest to lowest risk.
+            extents = keep_unique_extents(new_extents,order)
+
+            # Use the list of unique extents to find the polygons to use
+            # for timestamp formatting while keeping the order specified above.
+            polygons_for_timestamps=[]
+            for i,item in enumerate(extents):
+                idx = new_extents.index(item)
+                polygons_for_timestamps.append(reply_polygons[idx])
+
+            extent=False
             leg_loc = 0
-
         else:
             # Plot CONUS with no categories.
             extent = [-125,-66,24,50]
@@ -818,15 +1009,13 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
     #
     # On to steps 3-5, plotting the maps!
     #
-    reply = False
-    plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply)
-
-    if where in ['data']:
-        # If lower category is at least slight
-        if len(cat_gdf)>3:
-            for i,bounds in enumerate(other_bounds_list):
-                reply = i+1
-                plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,bounds,leg_loc,cat_gdf,reply,reply_polygon=other_polygons_list[i])
+    if not extents:
+        reply = False
+        plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply)
+    elif not extent and len(extents)>0:
+        for i,extent in enumerate(extents):
+            reply = False if i==0 else i
+            plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply,reply_polygon=polygons_for_timestamps[i])
 
 
 
@@ -938,7 +1127,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
                     label2 = category_labels[i-1]
                     label = list(cat_gdf[cat_gdf['LABEL2'] == label2]['LABEL'])[0]
                     print(f'{label}: {(category >= i).sum()} = {(category >= i).sum()/US_mask_count*100:.2f}% of US')
-            print('\n')
+    print()
 
 
 
@@ -975,9 +1164,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     start_time_dt = dt.strptime(start_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
     issue_time_dt = dt.strptime(issue_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
 
-    if not reply: polygon = cat_gdf.iloc[-1]['geometry']
-    else: polygon = reply_polygon
-
+    # Use coords from polygon in middle of image to compute times to print.
+    polygon = cat_gdf.iloc[-1]['geometry'] if not reply else reply_polygon
     start_time,end_time,issue_time = convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,where)
 
     # Generate legend patches
@@ -993,12 +1181,14 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Setup matplotlib figure #
     ###########################
+    # Make the map coordinate reference system (crs)
     if plot_type=='CONUS': map_crs = ccrs.Orthographic(central_latitude=39.833333, central_longitude=-98.583333)
     else:
         clon = (extent[0]+extent[1])/2
         clat = (extent[2]+extent[3])/2
         map_crs = ccrs.Orthographic(central_latitude=clat, central_longitude=clon)
 
+    # Make the figure and axis.
     fig = plt.figure(1, figsize=(1024/48, 512/48))
     ax = plt.subplot(1, 1, 1, projection=map_crs)
 
@@ -1025,7 +1215,6 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         pm = ax.pcolormesh(x,y,category,**kwargs)
 
     elif plot_type=='exact':
-
         for i,key in enumerate(category_labels):
             geometries = cat_gdf[cat_gdf['LABEL2'] == key]
 
@@ -1039,6 +1228,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     # Set plot extent #
     ###################
     ax.set_extent(extent, data_crs)
+
 
     # Add map features #
     ####################
@@ -1065,7 +1255,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Add major roads
     if plot_day==1 and len(cat_gdf)>3 and plot_type=='smooth' and num_grids<=(170*170):
-        if num_grids<=(130*130): rank = 7
+        if num_grids<=(110*110): rank = 7
         elif num_grids<=(140*140): rank = 6
         elif num_grids<=(160*160): rank = 5
         elif num_grids<=(170*170): rank = 4
@@ -1073,8 +1263,12 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         roads = get_shapes_list('10m','cultural','roads')
         roads = [road for road in roads
                     if road.attributes['sov_a3']=='USA'
-                    and road.attributes['type'] in ['Major Highway','Beltway']
+                    #and road.attributes['type'] in ['Major Highway','Beltway']
                     and road.attributes['scalerank']<=rank]
+
+        #print(set([road.attributes['scalerank'] for road in roads]))
+        #for i in range(3,8): print(i,len([road for road in roads if road.attributes['scalerank']==i]))
+
         roads = [rd.geometry for rd in roads]
 
         for rd in roads:
@@ -1134,11 +1328,10 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     for country in mexico_canada:
         ax.add_geometries( [country], crs=data_crs, facecolor='w', edgecolor='k')
 
-    # Add Great Lakes
+    # Add Great Lakes to mask output in those areas.
     great_lakes = Great_Lakes()
     for lake in great_lakes:
         ax.add_geometries( [lake], crs=data_crs, facecolor=cfeature.COLORS['water'], edgecolor='k' )
-
 
 
     # Legend, Title, Attribution #
@@ -1153,10 +1346,11 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Plot the titles
     mid = (fig.subplotpars.right + fig.subplotpars.left)/2
+    y_pos = ax.get_position().y1+0.05
     kwargs = {'fontsize':18,
                 'fontweight':'bold',
                 'x':mid,
-                'y':0.93
+                'y':y_pos
             }
     plt.suptitle(f'SPC Day {plot_day} Severe Storm Outlook', **kwargs)
     if plot_day==1:
@@ -1278,14 +1472,20 @@ if __name__ == '__main__':
     elif time.hour in [7]: h1=2; h2=4; st=1
     else: h1=8; h2=3; st=-1
 
-    if override: h1=plot_day; h2=plot_day+1; st=1
+    if override:
+        if isinstance(plot_day,int):
+            h1=plot_day; h2=plot_day+1; st=1
 
     # Time it
     big_start_timer = dt.now()
 
     # Run the code
-    for plot_day in range(h1,h2,st):
-        print(f'\n*** Day {plot_day} ***')
+    if isinstance(plot_day,int):
+        for plot_day in range(h1,h2,st):
+            print(f'\n*** Day {plot_day} ***')
+            get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override)
+    elif isinstance(plot_day,list):
+        print(f'\n*** Date: {plot_day[0]}_{plot_day[1]} ***')
         get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override)
 
     # Report time
