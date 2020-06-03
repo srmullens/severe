@@ -246,7 +246,7 @@ def size_check(l_risk,u_risk):
                     pyproj.transform,
                     pyproj.Proj(init='EPSG:4326'),
                     pyproj.Proj(
-                        proj='aea',
+                        proj='hatano',
                         lat1=u_risk.bounds[1],
                         lat2=u_risk.bounds[3])),
                 u_risk)
@@ -259,9 +259,9 @@ def size_check(l_risk,u_risk):
                     pyproj.transform,
                     pyproj.Proj(init='EPSG:4326'),
                     pyproj.Proj(
-                        proj='aea',
-                        lat_1=lu_risk.bounds[1],
-                        lat_2=lu_risk.bounds[3])),
+                        proj='moll')),
+                        #lat_1=lu_risk.bounds[1],
+                        #lat_2=lu_risk.bounds[3])),
                 lu_risk)
     # Compute area
     lu_area = lu_eac.area
