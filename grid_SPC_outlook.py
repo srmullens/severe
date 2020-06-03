@@ -82,9 +82,9 @@ plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
 if override:
-    send_tweet = False
+    send_tweet = True
     plot_type_override = False
-    get_average_override = True
+    get_average_override = False
 
 
 
@@ -260,8 +260,8 @@ def size_check(l_risk,u_risk):
                     pyproj.Proj(init='EPSG:4326'),
                     pyproj.Proj(
                         proj='aea',
-                        lat1=lu_risk.bounds[1],
-                        lat2=lu_risk.bounds[3])),
+                        lat_1=lu_risk.bounds[1],
+                        lat_2=lu_risk.bounds[3])),
                 lu_risk)
     # Compute area
     lu_area = lu_eac.area
