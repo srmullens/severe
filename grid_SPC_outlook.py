@@ -1,20 +1,30 @@
-################################################################
-# Plots SPC Outlooks for the area you are concerned about.     #
-#   URLs exist for plotting WPC, NHC, drought data.            #
-#                                                              #
-# Code by: Stephen Mullens                                     #
-# May 2020                                                     #
-#                                                              #
-# Code inspired by:                                            #
-#   Twitter: @betelbot and https://github.com/hippke/betelbot  #
-#       and                                                    #
-#   https://github.com/frontogenesis/metpy/.ipynb_checkpoints/ #
-#       look at SPC Outlooks-checkpoint.ipynb                  #
-#       and at download_shapes-checkpoint.ipynb                #
-#                                                              #
-# See guiding map making principles at:                        #
-#   https://github.com/srmullens/map_making_principles         #
-################################################################
+#####################################################################
+# Plots SPC Outlooks for the area you are concerned about.          #
+#   Considering outlooks represent a forecast of probabilities,     #
+#   outlooks are smoothed by 25mi at their borders. The goal is     #
+#   for people to not worry about what color they are in when       #
+#   they are near the border. Focus on preparing for storms!        #
+#                                                                   #
+# Code by: Stephen Mullens                                          #
+# June 2020                                                         #
+#                                                                   #
+# Code inspired by:                                                 #
+#   Communications:                                                 #
+#       https://twitter.com/ounwcm/status/1130197459618156545?s=20  #
+#       https://twitter.com/ounwcm/status/712703585218203648?s=20   #
+#       https://twitter.com/ounwcm/status/591582647123480577?s=20   #
+#       https://twitter.com/ounwcm/status/524932920037752834?s=20   #
+#       https://twitter.com/ounwcm/status/451364902050213888?s=20   #
+#   Twitter capability:                                             #
+#       @betelbot and https://github.com/hippke/betelbot            #
+#   Data plotting:                                                  #
+#       https://github.com/frontogenesis/metpy/.ipynb_checkpoints/  #
+#           SPC Outlooks-checkpoint.ipynb                           #
+#           download_shapes-checkpoint.ipynb                        #
+#                                                                   #
+# See guiding map making principles at:                             #
+#   https://github.com/srmullens/map_making_principles              #
+#####################################################################
 
 import requests
 from contextlib import closing
@@ -77,14 +87,14 @@ plot_type = 'smooth'
 send_tweet = True
 
 # Need a plot_day, smoothing, and plot_type override?
-override = True                # Master 'override' flag
+override = False                # Master 'override' flag
 plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
 if override:
-    send_tweet = True
+    send_tweet = False
     plot_type_override = False
-    get_average_override = False
+    get_average_override = True
 
 
 
@@ -239,29 +249,28 @@ def combined_extent(*args):
 def size_check(l_risk,u_risk):
     # Want size of l_risk + u_risk.
     lu_risk = l_risk.union(u_risk)
-    print(u_risk.bounds[1],u_risk.bounds[3])
+
     # Convert u_risk polygon to projected equal area coordinates (eac).
     u_eac = sops.transform(
                 partial(
                     pyproj.transform,
                     pyproj.Proj(init='EPSG:4326'),
                     pyproj.Proj(
-                        proj='hatano',
+                        proj='aea',
                         lat1=u_risk.bounds[1],
                         lat2=u_risk.bounds[3])),
                 u_risk)
+
     # Compute area
     u_area = u_eac.area
 
     # Convert lu_risk polygon to projected equal area coordinates (eac).
+    #   Albers Equal Area = aea
     lu_eac = sops.transform(
                 partial(
                     pyproj.transform,
                     pyproj.Proj(init='EPSG:4326'),
-                    pyproj.Proj(
-                        proj='moll')),
-                        #lat_1=lu_risk.bounds[1],
-                        #lat_2=lu_risk.bounds[3])),
+                    pyproj.Proj(proj='moll')),
                 lu_risk)
     # Compute area
     lu_area = lu_eac.area
@@ -1340,7 +1349,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Add major roads
     if plot_day==1 and len(cat_gdf)>3 and plot_type=='smooth' and num_grids<=(170*170):
-        if num_grids<=(110*110): rank = 7
+        if num_grids<=(100*100): rank = 7
         elif num_grids<=(140*140): rank = 6
         elif num_grids<=(160*160): rank = 5
         elif num_grids<=(170*170): rank = 4
@@ -1380,7 +1389,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
     # Add text labels for select cities
     if plot_day in [1,2] and len(cat_gdf)>2 and plot_type=='smooth' and num_grids<=(275*275):
-        if num_grids<=(140*140): rank = 6
+        if num_grids<=(110*110): rank = 7
+        elif num_grids<=(140*140): rank = 6
         elif num_grids<=(160*160): rank = 4
         elif num_grids<=(275*275): rank = 3
 
