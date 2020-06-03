@@ -22,14 +22,16 @@ import zipfile, tarfile
 import os, glob, shutil
 import numpy as np
 import pandas as pd
+import pyproj
 import itertools
+from functools import partial
 from math import degrees, radians, cos, sin, asin, sqrt
 
 import geopandas
 import shapely.vectorized
 import shapely.ops as sops
 import shapely.geometry as sg
-from shapely.geometry import Polygon
+from shapely.geometry import Point,Polygon
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -66,7 +68,7 @@ setting = 'low'
 plot_day = 1
 #   Archived date and time: ['YYYYMMDD','HHMM',int between 1-8]
 #   Archived date must be 2020, due to SPC shapefile formatting.
-#plot_day = ['20200523','2000',1]
+#plot_day = ['20200514','1730',2]
 
 # What type of plot: 'exact' or 'smooth'
 plot_type = 'smooth'
@@ -81,8 +83,8 @@ get_average_override = False    # Smoothing
 
 if override:
     send_tweet = False
-    plot_type_override=False
-    get_average_override=True
+    plot_type_override = False
+    get_average_override = True
 
 
 
@@ -231,6 +233,41 @@ def combined_extent(*args):
     north = max([float(ab[3])+1 for ab in arg_bounds])
     combined_bounds = [west,east,south,north]
     return combined_bounds
+
+
+# Check to see if area of lower risk is way bigger than area of higher risk.
+def size_check(l_risk,u_risk):
+    # Want size of l_risk + u_risk.
+    lu_risk = l_risk.union(u_risk)
+
+    # Convert u_risk polygon to projected equal area coordinates (eac).
+    u_eac = sops.transform(
+                partial(
+                    pyproj.transform,
+                    pyproj.Proj(init='EPSG:4326'),
+                    pyproj.Proj(
+                        proj='aea',
+                        lat1=u_risk.bounds[1],
+                        lat2=u_risk.bounds[3])),
+                u_risk)
+    # Compute area
+    u_area = u_eac.area
+
+    # Convert lu_risk polygon to projected equal area coordinates (eac).
+    lu_eac = sops.transform(
+                partial(
+                    pyproj.transform,
+                    pyproj.Proj(init='EPSG:4326'),
+                    pyproj.Proj(
+                        proj='aea',
+                        lat1=lu_risk.bounds[1],
+                        lat2=lu_risk.bounds[3])),
+                lu_risk)
+    # Compute area
+    lu_area = lu_eac.area
+
+    # Return true if lu_risk is 3.5x bigger area than u_risk.
+    return True if lu_area/u_area*100 > 350 else False
 
 
 # Take the list of extents, keep the unique ones, and order them.
@@ -697,7 +734,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
     print('--> Get the files')
 
     if isinstance(plot_day,int):
-        print('-->Getting operational data')
+        print('--> Getting operational data')
         if plot_day<4:
             shapefiles = {
                 'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/outlook/day{plot_day}otlk-shp.zip'}
@@ -710,7 +747,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
         archive_ymd = plot_day[0]
         archive_hm = plot_day[1]
         plot_day = plot_day[2]
-        print('-->Getting archive: {archive_ymd}_{archive_hm}')
+        print('--> Getting archive: {archive_ymd}_{archive_hm}')
         shapefiles = {
             'spc': {f'categorical_day{plot_day}': f'https://www.spc.noaa.gov/products/outlook/archive/{archive_ymd[:4]}/day{plot_day}otlk_{archive_ymd}_{archive_hm}-shp.zip'} }
 
@@ -825,8 +862,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
     #
 
     ### MAP EXTENT, LEGEND LOCATION, AND COORDINATE REFERENCE SYSTEM ###
-
-    unique_extents = False
+    extents = False
 
     # Set Coordinate Reference System, extent, and legend location for the map
     if plot_nothing or where=='CONUS':
@@ -881,6 +917,12 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             print(f'\nlengths: M, S, E, M, H')
             print(f' exists: {nmrgl}, {nslgt}, {nenh}, {nmdt}, {nhigh}')
 
+            top_risk=None
+            if nhigh!='-': top_risk='high'
+            elif nmdt!='-': top_risk='mdt'
+            elif nenh!='-': top_risk='enh'
+
+
             # Cycle through all the polygons, finding out what to plot.
             for r,MRGL in enumerate(MRGLs):
                 for s,SLGT in enumerate(SLGTs):
@@ -910,6 +952,16 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     new_extents.append(add_extent)
                                     reply_polygons.append(HIGH)
                                     order.append(0)
+                                    # Check if MDT is way bigger than HIGH.
+                                    if top_risk=='high':
+                                        size_small = size_check(MDT,HIGH)
+                                        if size_small:
+                                            # ...add HIGH extent
+                                            print(f'    HIGH {h+1} much smaller than MDT {m+1}')
+                                            add_extent = combined_extent(HIGH)
+                                            new_extents.append(add_extent)
+                                            reply_polygons.append(HIGH)
+                                            order.append(-1)
                                 # if ENH contains MDT & HIGH, but MDT doesn’t contain HIGH.
                                 if not one and two and three:
                                     # ...add MDT extent
@@ -926,6 +978,16 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     new_extents.append(add_extent)
                                     reply_polygons.append(MDT)
                                     order.append(2)
+                                    # Check if ENH is way bigger than MDT.
+                                    if top_risk=='mdt':
+                                        size_small = size_check(ENH,MDT)
+                                        if size_small:
+                                            # ...add MDT extent
+                                            print(f'    MDT {m+1} much smaller than ENH {e+1}')
+                                            add_extent = combined_extent(MDT)
+                                            new_extents.append(add_extent)
+                                            reply_polygons.append(MDT)
+                                            order.append(1)
                                 # if SLGT contains ENH & MDT, but ENH doesn’t contain MDT.
                                 if not three and five and six:
                                     # ...add ENH extent
@@ -942,6 +1004,16 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     new_extents.append(add_extent)
                                     reply_polygons.append(ENH)
                                     order.append(4)
+                                    # Check if SLGT is way bigger than ENH.
+                                    if top_risk=='enh':
+                                        size_small = size_check(SLGT,ENH)
+                                        if size_small:
+                                            # ...add MDT extent
+                                            print(f'    ENH {e+1} much smaller than SLGT {s+1}')
+                                            add_extent = combined_extent(ENH)
+                                            new_extents.append(add_extent)
+                                            reply_polygons.append(ENH)
+                                            order.append(3)
                                 # if MRGL contains SLGT & ENH, but SLGT doesn't contain ENH.
                                 if not six and seven and eight:
                                     # ...add SLGT extent
@@ -1229,6 +1301,19 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     ###################
     ax.set_extent(extent, data_crs)
 
+    # Adjust extent
+    #   Find lat of bottom middle of graph.
+    p_a = (0.5,0)
+    p_a_disp = ax.transAxes.transform(p_a)
+    p_a_data = ax.transData.inverted().transform(p_a_disp)
+    p_a_cart = data_crs.transform_point(*p_a_data, src_crs=map_crs)
+
+    # How much should the plot be moved south by?
+    south_offset = extent[2]-p_a_cart[1]
+    extent = [extent[0],extent[1],extent[2]+south_offset,extent[3]]
+
+    # Set new extent
+    ax.set_extent(extent, data_crs)
 
     # Add map features #
     ####################
@@ -1310,13 +1395,50 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         y = [pt.attributes['latitude'] for pt in names]
 
         for i,_ in enumerate(x):
-            ax.text(x[i],y[i],name[i],
-                horizontalalignment='center',
-                verticalalignment='top',
-                fontsize=8,
-                clip_on=True,
-                bbox={'facecolor':'white','edgecolor':'none','alpha':0.5,'pad':1},
-                transform=data_crs)
+            kwargs = {'horizontalalignment':'center',
+                        'verticalalignment':'top',
+                        'fontsize':8,
+                        'clip_on':True,
+                        'bbox':{'facecolor':'white','edgecolor':'none','alpha':0.5,'pad':1},
+                        'transform':data_crs }
+            ax.text(x[i],y[i],name[i],**kwargs)
+
+    # Add state labels to day 3-8 plots.
+    elif plot_day in [3,4,5,6,7,8] and plot_type=='smooth' and num_grids<=(300*300):
+        # Make polygon from extent. W E S N
+        corner1 = Point(extent[0]+0.4,extent[2]+0.4)
+        corner2 = Point(extent[1]-0.4,extent[2]+0.4)
+        corner3 = Point(extent[1]-0.4,extent[3]-0.4)
+        corner4 = Point(extent[0]+0.4,extent[3]-0.4)
+        corner_list = [corner1,corner2,corner3,corner4]
+        extent_poly = Polygon([[p.x, p.y] for p in corner_list])
+
+        # Get geometries and attributes of US states.
+        states_records = get_shapes_list('50m','cultural','admin_1_states_provinces_lakes')
+        state_info = [shp for shp in states_records
+                        if shp.attributes['admin']=='United States of America'
+                        and shp.attributes["name"]!='District of Columbia']
+
+        # Find states that lie within the extent
+        for state in state_info:
+            if extent_poly.intersection(state.geometry):
+                # Get a point within the state to place the label.
+                partial_state = extent_poly.intersection(state.geometry)
+                label_point = partial_state.representative_point()
+
+                # Process state name
+                state_name = state.attributes["name"].upper()
+                state_name = state_name.replace(' ','\n')
+
+                # Add state labels to the map.
+                kwargs = {'horizontalalignment':'center',
+                        'verticalalignment':'top',
+                        'fontsize':8,
+                        'clip_on':True,
+                        'bbox':{'facecolor':'white','edgecolor':'none','alpha':0.5,'pad':1},
+                        'transform':data_crs }
+                ax.text(label_point.x,label_point.y,state_name,**kwargs)
+            else: continue
 
 
     # Show states
