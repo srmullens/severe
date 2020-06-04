@@ -75,7 +75,7 @@ setting = 'low'
 
 # What SPC day do you want to plot?
 #   Current Operational Data (int between 1-8)
-plot_day = 1
+plot_day = 3
 #   Archived date and time: ['YYYYMMDD','HHMM',int between 1-8]
 #   Archived date must be 2020, due to SPC shapefile formatting.
 #plot_day = ['20200514','1730',2]
@@ -87,14 +87,14 @@ plot_type = 'smooth'
 send_tweet = True
 
 # Need a plot_day, smoothing, and plot_type override?
-override = False                # Master 'override' flag
+override = True                # Master 'override' flag
 plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
 if override:
     send_tweet = False
     plot_type_override = False
-    get_average_override = True
+    get_average_override = False
 
 
 
@@ -255,10 +255,7 @@ def size_check(l_risk,u_risk):
                 partial(
                     pyproj.transform,
                     pyproj.Proj(init='EPSG:4326'),
-                    pyproj.Proj(
-                        proj='aea',
-                        lat1=u_risk.bounds[1],
-                        lat2=u_risk.bounds[3])),
+                    pyproj.Proj(proj='moll')),
                 u_risk)
 
     # Compute area
