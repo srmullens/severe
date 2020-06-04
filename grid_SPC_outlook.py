@@ -897,8 +897,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             leg_loc = 0
 
         # Days 1-3, if there is at least a slight risk, calculate map extent.
-        # Days 4-8, if there are two risks, calculate map extent.
-        elif (plot_day<4 and len(cat_gdf)>2) or (plot_day>3 and len(cat_gdf)>1):
+        elif plot_day<4 and len(cat_gdf)>2:
 
             #0=TSTM; 1=MRGL; 2=SLGT; 3=ENH; 4=MDT; 5=HIGH
 
@@ -961,7 +960,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     # Check if MDT is way bigger than HIGH.
                                     if top_risk=='high':
                                         size_small = size_check(MDT,HIGH)
-                                        if size_small:
+                                        if size_small and plot_day<3:
                                             # ...add HIGH extent
                                             print(f'    HIGH {h+1} much smaller than MDT {m+1}')
                                             add_extent = combined_extent(HIGH)
@@ -987,7 +986,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     # Check if ENH is way bigger than MDT.
                                     if top_risk=='mdt':
                                         size_small = size_check(ENH,MDT)
-                                        if size_small:
+                                        if size_small and plot_day<3:
                                             # ...add MDT extent
                                             print(f'    MDT {m+1} much smaller than ENH {e+1}')
                                             add_extent = combined_extent(MDT)
@@ -1013,7 +1012,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     # Check if SLGT is way bigger than ENH.
                                     if top_risk=='enh':
                                         size_small = size_check(SLGT,ENH)
-                                        if size_small:
+                                        if size_small and plot_day<3:
                                             # ...add MDT extent
                                             print(f'    ENH {e+1} much smaller than SLGT {s+1}')
                                             add_extent = combined_extent(ENH)
