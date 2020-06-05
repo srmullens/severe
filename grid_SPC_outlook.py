@@ -1563,14 +1563,14 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
         elif plot_day==2:
             if int(issue_time_dt.strftime('%-H'))<12:
-                tweet_text = f'Issued at {issue_time}: SPC forecast for {start_time_dt:%A, %b %-d}.'
+                tweet_text = f'Issued at {issue_time}: SPC forecast for {start_time_dt:%A, %B %-d}.'
             else:
-                tweet_text = f'Issued at {issue_time}: SPC forecast for tomorrow, {start_time_dt:%A, %b %-d}.'
+                tweet_text = f'Issued at {issue_time}: SPC forecast for tomorrow, {start_time_dt:%A, %B %-d}.'
             print(f'    --> Tweet: {tweet_text}')
             tweet(tweet_text, save_location, send_tweet, reply)
 
         else:
-            tweet_text = f'SPC forecast for {start_time_dt:%A, %b %-d}.'
+            tweet_text = f'SPC forecast for {start_time_dt:%A, %B %-d}.'
             print(f'    --> Tweet: {tweet_text}')
             tweet(tweet_text, save_location, send_tweet, reply)
 
