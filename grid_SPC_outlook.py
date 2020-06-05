@@ -92,9 +92,9 @@ plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
 if override:
-    send_tweet = True
+    send_tweet = False
     plot_type_override = False
-    get_average_override = False
+    get_average_override = True
 
 
 
@@ -534,47 +534,47 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
                 coords = list(polygon.exterior.coords)
         except:
             coords = None
-            new_zones_list=[start_utc_time]
+            new_zones_list=['UTC']
 
-
+        # List the timezone at each polygon vertex.
         if coords is not None:
             for coord in coords:
                 # What timezone is each coordinate of the highest risk in?
                 new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
 
-            # Remove None values.
-            new_zones_list = [i for i in new_zones_list if i]
+        # Remove None values.
+        new_zones_list = [i for i in new_zones_list if i]
 
-            # Standardize time zones
-            for i,item in enumerate(new_zones_list):
-                zone = f'{start_utc_time.astimezone(tz.gettz(item)):%Z}'
-                if zone in ['EST','EDT']:
-                    new_zones_list[i] = 'America/New_York'
-                elif zone in ['CST','CDT']:
-                    new_zones_list[i] = 'America/Chicago'
-                elif zone in ['MST','MDT']:
-                    new_zones_list[i] = 'America/Denver'
-                elif zone in ['PST','PDT']:
-                    new_zones_list[i] = 'America/Los_Angeles'
+        # Standardize time zones
+        for i,item in enumerate(new_zones_list):
+            zone = f'{start_utc_time.astimezone(tz.gettz(item)):%Z}'
+            if zone in ['EST','EDT']:
+                new_zones_list[i] = 'America/New_York'
+            elif zone in ['CST','CDT']:
+                new_zones_list[i] = 'America/Chicago'
+            elif zone in ['MST','MDT']:
+                new_zones_list[i] = 'America/Denver'
+            elif zone in ['PST','PDT']:
+                new_zones_list[i] = 'America/Los_Angeles'
 
-            # Reduce list to unique time zones.
-            print(f'  --> All time zones: {new_zones_list}')
-            new_zones_list = list(set(new_zones_list))
+        # Reduce list to unique time zones.
+        print(f'  --> All time zones: {new_zones_list}')
+        new_zones_list = list(set(new_zones_list))
 
-            # Sort the resulting list from west to east.
-            west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York']
-            sort_by = []
-            print(f'  --> Unique time zones: {new_zones_list}')
-            for item in new_zones_list: sort_by.append(west_to_east.index(item))
-            new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
+        # Sort the resulting list from west to east.
+        west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York','UTC']
+        sort_by = []
+        print(f'  --> Unique time zones: {new_zones_list}')
+        for item in new_zones_list: sort_by.append(west_to_east.index(item))
+        new_zones_list = [nzl for _,nzl in sorted(zip(sort_by,new_zones_list), key=lambda pair: pair[0])]
 
-            print(f'  --> Sorted time zones: {new_zones_list}')
+        print(f'  --> Sorted time zones: {new_zones_list}')
 
-            # Use str timezone names to modify datetime objects
-            for i,item in enumerate(new_zones_list):
-                start_zones_list.append(start_utc_time.astimezone(tz.gettz(item)))
-                end_zones_list.append(end_utc_time.astimezone(tz.gettz(item)))
-                issue_zones_list.append(issue_utc_time.astimezone(tz.gettz(item)))
+        # Use str timezone names to modify datetime objects
+        for i,item in enumerate(new_zones_list):
+            start_zones_list.append(start_utc_time.astimezone(tz.gettz(item)))
+            end_zones_list.append(end_utc_time.astimezone(tz.gettz(item)))
+            issue_zones_list.append(issue_utc_time.astimezone(tz.gettz(item)))
 
     # Use Eastern time zone for Florida or Southeast.
     else:
@@ -585,20 +585,37 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
 
 
     # Generate string outputs based on how many time zones the highest risk covers.
-    if len(start_zones_list)>=3:
-        start_time = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}{start_zones_list[0].strftime("%p").lower()} {start_zones_list[0]:%Z}, {start_zones_list[-1]:%-I:%M}{start_zones_list[-1].strftime("%p").lower()} {start_zones_list[-1]:%Z}'
-        end_time = f'{end_zones_list[0]:%-I:%M}{end_zones_list[0].strftime("%p").lower()} {end_zones_list[0]:%Z}, {end_zones_list[-1]:%-I:%M}{end_zones_list[-1].strftime("%p").lower()} {end_zones_list[-1]:%Z}'
-        issue_time = f'{issue_zones_list[0]:%-I:%M}{issue_zones_list[0].strftime("%p").lower()} {issue_zones_list[0]:%Z}, or {issue_zones_list[-1]:%-I:%M}{issue_zones_list[-1].strftime("%p").lower()} {issue_zones_list[-1]:%Z}'
+    s1    = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}'
+    s1_pm = f'{start_zones_list[0].strftime("%p").lower()}'
+    s1_tz = f'{start_zones_list[0]:%Z}'
+    s2    = f'{start_zones_list[-1]:%-I:%M}'
+    s2_pm = f'{start_zones_list[-1].strftime("%p").lower()}'
+    s2_tz = f'{start_zones_list[-1]:%Z}'
+    start_time = f'{s1}{s1_pm} {s1_tz}, {s2}{s2_pm} {s2_tz}'
 
-    elif len(start_zones_list)==2:
-        start_time = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}{start_zones_list[0].strftime("%p").lower()} {start_zones_list[0]:%Z}, {start_zones_list[-1]:%-I:%M}{start_zones_list[-1].strftime("%p").lower()} {start_zones_list[-1]:%Z}'
-        end_time = f'{end_zones_list[0]:%-I:%M}{end_zones_list[0].strftime("%p").lower()} {end_zones_list[0]:%Z}, {end_zones_list[-1]:%-I:%M}{end_zones_list[-1].strftime("%p").lower()} {end_zones_list[-1]:%Z}'
-        issue_time = f'{issue_zones_list[0]:%-I:%M}{issue_zones_list[0].strftime("%p").lower()} {issue_zones_list[0]:%Z}, or {issue_zones_list[-1]:%-I:%M}{issue_zones_list[-1].strftime("%p").lower()} {issue_zones_list[-1]:%Z}'
+    e1    = f'{end_zones_list[0]:%-I:%M}'
+    e1_pm = f'{end_zones_list[0].strftime("%p").lower()}'
+    e1_tz = f'{end_zones_list[0]:%Z}'
+    e2    = f'{end_zones_list[-1]:%-I:%M}'
+    e2_pm = f'{end_zones_list[-1].strftime("%p").lower()}'
+    e2_tz = f'{end_zones_list[-1]:%Z}'
+
+    i1    = f'{issue_zones_list[0]:%-I:%M}'
+    i1_pm = f'{issue_zones_list[0].strftime("%p").lower()}'
+    i1_tz = f'{issue_zones_list[0]:%Z}'
+    i2    = f'{issue_zones_list[-1]:%-I:%M}'
+    i2_pm = f'{issue_zones_list[-1].strftime("%p").lower()}'
+    i2_tz = f'{issue_zones_list[-1]:%Z}'
+
+    if len(start_zones_list)>=2:
+        start_time = f'{s1}{s1_pm} {s1_tz}, {s2}{s2_pm} {s2_tz}'
+        end_time = f'{e1}{e1_pm} {e1_tz}, {e2}{e2_pm} {e2_tz}'
+        issue_time = f'{i1}{i1_pm} {i1_tz}, or {i2}{i2_pm} {i2_tz}'
 
     elif len(start_zones_list)==1:
-        start_time = f'{start_zones_list[0]:%a, %b %d, %Y %-I:%M}{start_zones_list[0].strftime("%p").lower()} {start_zones_list[0]:%Z}'
-        end_time = f'{end_zones_list[0]:%-I:%M}{end_zones_list[0].strftime("%p").lower()} {end_zones_list[0]:%Z}'
-        issue_time = f'{issue_zones_list[0]:%-I:%M}{issue_zones_list[0].strftime("%p").lower()} {issue_zones_list[0]:%Z}'
+        start_time = f'{s1}{s1_pm} {s1_tz}'
+        end_time = f'{e1}{e1_pm} {e1_tz}'
+        issue_time = f'{i1}{i1_pm} {i1_tz}'
 
     print(f'  --> start_time: {start_time}')
     print(f'  --> end_time: {end_time}')
