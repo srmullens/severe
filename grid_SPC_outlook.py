@@ -71,7 +71,7 @@ from twython import Twython
 where='data'
 
 # What resolution do you want? 'low', 'mid', 'high'
-setting = 'low'
+grid_res = 'low'
 
 # What SPC day do you want to plot?
 #   Current Operational Data (int between 1-8)
@@ -284,13 +284,15 @@ def keep_unique_extents(extents_list,order):
     # Order the original list in highest to lowest risk.
     extents_ordered = [x for _,x in sorted(zip(order,extents_copy))]
 
-    # Remove duplicate extents.
-    unique_extents = extents_ordered.copy()
-    unique_extents.sort()
-    unique_extents = list(k for k,_ in itertools.groupby(unique_extents))
-
-    # Re-order the unique extents to match be in the most to least important order.
-    unique_extents = [x for _,x in sorted(zip(extents_ordered,unique_extents))]
+    # Keep only the first instance of each item.
+    unique_extents=[]
+    for item in extents_ordered:
+        count=0
+        if item not in unique_extents:
+            unique_extents.append(item)
+            count+=1
+        elif item in unique_extents: continue
+        else: print('problem')
 
     return unique_extents
 
@@ -749,7 +751,7 @@ def tweet(text, image, send_tweet, reply):
 ########################################
 # The main function to make the plots. #
 ########################################
-def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
+def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
     #
     # STEP 1: Get the files
     #
@@ -921,6 +923,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             new_extents=[]
             order=[]
             reply_polygons=[]
+            reply_categories=[]
 
             # Get a list of polygons at each category from the shapefiles.
             HIGHs = get_polygons(cat_gdf,5)
@@ -973,6 +976,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(MDT,HIGH)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(HIGH)
+                                    reply_categories.append('HIGH')
                                     order.append(0)
                                     # Check if MDT is way bigger than HIGH.
                                     if top_risk=='high':
@@ -983,7 +987,8 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                             add_extent = combined_extent(HIGH)
                                             new_extents.append(add_extent)
                                             reply_polygons.append(HIGH)
-                                            order.append(-1)
+                                            reply_categories.append('HIGH')
+                                            order.append(0.5)
                                 # if ENH contains MDT & HIGH, but MDT doesn’t contain HIGH.
                                 if not one and two and three:
                                     # ...add MDT extent
@@ -991,6 +996,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(MDT)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(MDT)
+                                    reply_categories.append('MDT')
                                     order.append(1)
                                 # if ENH doesn’t contain HIGH, and ENH contains MDT.
                                 if not two and three:
@@ -999,6 +1005,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(ENH,MDT)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(MDT)
+                                    reply_categories.append('MDT')
                                     order.append(2)
                                     # Check if ENH is way bigger than MDT.
                                     if top_risk=='mdt':
@@ -1009,7 +1016,8 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                             add_extent = combined_extent(MDT)
                                             new_extents.append(add_extent)
                                             reply_polygons.append(MDT)
-                                            order.append(1)
+                                            reply_categories.append('MDT')
+                                            order.append(2.5)
                                 # if SLGT contains ENH & MDT, but ENH doesn’t contain MDT.
                                 if not three and five and six:
                                     # ...add ENH extent
@@ -1017,6 +1025,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(ENH)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(ENH)
+                                    reply_categories.append('ENH')
                                     order.append(3)
                                 # if SLGT contains ENH, and neither contain MDT.
                                 if not three and not five and six:
@@ -1025,6 +1034,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(SLGT,ENH)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(ENH)
+                                    reply_categories.append('ENH')
                                     order.append(4)
                                     # Check if SLGT is way bigger than ENH.
                                     if top_risk=='enh':
@@ -1035,7 +1045,8 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                             add_extent = combined_extent(ENH)
                                             new_extents.append(add_extent)
                                             reply_polygons.append(ENH)
-                                            order.append(3)
+                                            reply_categories.append('ENH')
+                                            order.append(4.5)
                                 # if MRGL contains SLGT & ENH, but SLGT doesn't contain ENH.
                                 if not six and seven and eight:
                                     # ...add SLGT extent
@@ -1043,6 +1054,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(SLGT)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(SLGT)
+                                    reply_categories.append('SLGT')
                                     order.append(5)
                                 # if MRGL contains SLGT, but neither contain ENH.
                                 if not six and not seven and eight and enh_exists:
@@ -1051,6 +1063,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(SLGT)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(SLGT)
+                                    reply_categories.append('SLGT')
                                     order.append(6)
 
                                 ### ZOOMED OUT ###
@@ -1061,6 +1074,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(SLGT,ENH,MDT,HIGH)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(SLGT)
+                                    reply_categories.append('HIGH')
                                     order.append(7)
                                 # If SLGT contains MDT.
                                 elif five and mdt_exists:
@@ -1069,6 +1083,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(SLGT,ENH,MDT)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(SLGT)
+                                    reply_categories.append('MDT')
                                     order.append(8)
 
                                 ### ONLY SLIGHT ###
@@ -1080,6 +1095,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
                                     add_extent = combined_extent(MRGL,SLGT)
                                     new_extents.append(add_extent)
                                     reply_polygons.append(SLGT)
+                                    reply_categories.append('SLGT')
                                     order.append(9)
 
             # Remove extent duplicates and order from highest to lowest risk.
@@ -1088,9 +1104,11 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             # Use the list of unique extents to find the polygons to use
             # for timestamp formatting while keeping the order specified above.
             polygons_for_timestamps=[]
+            categories_for_roads=[]
             for i,item in enumerate(extents):
                 idx = new_extents.index(item)
                 polygons_for_timestamps.append(reply_polygons[idx])
+                categories_for_roads.append(reply_categories[idx])
 
             extent=False
             leg_loc = 0
@@ -1099,24 +1117,23 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override):
             extent = [-125,-66,24,50]
             leg_loc = 4
 
-
     #
     # On to steps 3-5, plotting the maps!
     #
     if not extents:
         reply = False
-        plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply)
+        plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,override,extent,leg_loc,cat_gdf,reply)
     elif not extent and len(extents)>0:
         for i,extent in enumerate(extents):
             reply = False if i==0 else i
-            plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply,reply_polygon=polygons_for_timestamps[i])
+            plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,override,extent,leg_loc,cat_gdf,reply,this_polygon=polygons_for_timestamps[i],this_category=categories_for_roads[i])
 
 
 
 ###################################################
 # Makes the grid, smooths it, and plots the data. #
 ###################################################
-def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,override,extent,leg_loc,cat_gdf,reply,reply_polygon=False):
+def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,override,extent,leg_loc,cat_gdf,reply,this_polygon=False,this_category=False):
     #
     # STEP 3: Make the lat/lon grid.
     #
@@ -1128,15 +1145,15 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
         # Make a grid of 0.1x0.1 degrees that covers the CONUS.
         #   CONUS covers N,S,W,E: 50,24,-125,-66
 
-        if setting=='high':
+        if grid_res=='high':
             y, x = grid_points = np.mgrid[24:50:2601j, -125:-66:5901j]
             US_mask_count = 8357331     # 54.45%
             grid_size = 15348501
-        elif setting=='mid':
+        elif grid_res=='mid':
             y, x = grid_points = np.mgrid[24:50:521j, -125:-66:1181j]
             US_mask_count = 334094      # 54.30%
             grid_size = 615301
-        elif setting=='low':
+        elif grid_res=='low':
             y, x = grid_points = np.mgrid[24:50:261j, -125:-66:591j]
             US_mask_count = 83477       # 54.11%
             grid_size = 154251
@@ -1259,7 +1276,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     issue_time_dt = dt.strptime(issue_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
 
     # Use coords from polygon in middle of image to compute times to print.
-    polygon = cat_gdf.iloc[-1]['geometry'] if not reply else reply_polygon
+    polygon = cat_gdf.iloc[-1]['geometry'] if not reply else this_polygon
     start_time,end_time,issue_time = convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,where)
 
     # Generate legend patches
@@ -1342,11 +1359,11 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
     print('  --> Adding cfeatures')
 
     if plot_type=='exact':
-        if setting=='high':
+        if grid_res=='high':
             y, x = grid_points = np.mgrid[24:25:101j, -125:-124:101j]
-        elif setting=='mid':
+        elif grid_res=='mid':
             y, x = grid_points = np.mgrid[24:24:21j, -125:-124:21j]
-        elif setting=='low':
+        elif grid_res=='low':
             y, x = grid_points = np.mgrid[24:25:11j, -125:-124:11j]
         grids = dist_in_grids(x,extent)
 
@@ -1361,7 +1378,10 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,setting,overrid
 
 
     # Add major roads
-    if plot_day==1 and len(cat_gdf)>3 and plot_type=='smooth' and num_grids<=(170*170):
+    cats = ['TSTM','MRGL','SLGT','ENH','MDT','HIGH']
+    road_cat = len(cat_gdf)-1 if not this_category else cats.index(this_category)
+    print(f' ****** road_cat: {road_cat} ****** ')
+    if plot_day==1 and road_cat>2 and plot_type=='smooth' and num_grids<=(170*170):
         if num_grids<=(100*100): rank = 7
         elif num_grids<=(140*140): rank = 6
         elif num_grids<=(160*160): rank = 5
@@ -1628,10 +1648,10 @@ if __name__ == '__main__':
     if isinstance(plot_day,int):
         for plot_day in range(h1,h2,st):
             print(f'\n*** Day {plot_day} ***')
-            get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override)
+            get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override)
     elif isinstance(plot_day,list):
         print(f'\n*** Date: {plot_day[0]}_{plot_day[1]} ***')
-        get_SPC_data(where,plot_type,plot_type_override,plot_day,setting,override)
+        get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override)
 
     # Report time
     big_time_elapsed = dt.now() - big_start_timer
