@@ -273,7 +273,7 @@ def size_check(l_risk,u_risk):
     lu_area = lu_eac.area
 
     # Return true if lu_risk is 3.5x bigger area than u_risk.
-    return True if lu_area/u_area*100 > 350 else False
+    return True if lu_area/u_area*100 > 500 else False
 
 
 # Take the list of extents, keep the unique ones, and order them.
