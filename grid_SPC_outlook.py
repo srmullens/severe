@@ -1447,7 +1447,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
             ax.text(x[i],y[i],name[i],**kwargs)
 
     # Add state labels to day 3-8 plots.
-    elif plot_day in [3,4,5,6,7,8] and plot_type=='smooth' and num_grids<=(300*300):
+    elif plot_day in [3,4,5,6,7,8] and plot_type=='smooth' and num_grids<=(175*175):
         # Make polygon from extent. W E S N
         corner1 = Point(extent[0]+0.4,extent[2]+0.4)
         corner2 = Point(extent[1]-0.4,extent[2]+0.4)
