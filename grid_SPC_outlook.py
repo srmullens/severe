@@ -108,14 +108,23 @@ def clear_folder_contents(folder):
     folder = f'{folder}/'
     extensions = ['.zip','.dbf','.prj','.shp','.shx']
     last = ['-shp']
+    image = ['.png']
+    map_features = ['ne_','cou']
+    delete = ['.DS_Store']
 
     for file in os.listdir(folder):
         file_path = os.path.join(folder, file)
         try:
-            if os.path.isfile(file_path) and file[-4] in extensions:
+            if os.path.isfile(file_path) and file[-4:] in image:
+                shutil.move(file_path,f'images/{file}')
+            elif os.path.isdir(file_path) and file[:3] in map_features:
+                shutil.move(file_path,f'map_features/{file}')
+            elif os.path.isfile(file_path) and file[-4:] in extensions:
                 os.unlink(file_path)
-            elif os.path.isdir(file_path) and file[-4] in last:
+            elif os.path.isdir(file_path) and file[-4:] in last:
                 shutil.rmtree(file_path)
+            elif os.path.isfile(file_path) and file in delete:
+                os.unlink(file_path)
         except Exception as e:
             print(e)
 
@@ -158,7 +167,7 @@ def download_zip_file(file_url, root_folder):
         zip_ref.close()
 
     # Rename all the files to uniform naming system.
-    mypath = f'spc/{folder}/'
+    mypath = f'{root_folder}/{folder}/'
     files = [os.path.join(mypath,f) for f in os.listdir(mypath)
                 if os.path.isfile(os.path.join(mypath, f))]
     for j,file in enumerate(files):
@@ -191,7 +200,7 @@ def get_polygons(gdf,loc):
 #   Probably helps if polygons listed in order of increasing risk,
 #   but that may not be strictly necessary.
 def this_contains_that(*args):
-    # Make one polygon out of the 2 or 3 polygons in the list.
+    # Make one polygon out of the 2, 3, or 4 polygons in the list.
     if len(args)==2:
         union_boundary = args[1].union(args[0]).boundary
     elif len(args)==3:
@@ -202,7 +211,7 @@ def this_contains_that(*args):
         union_012 = union_01.union(args[2])
         union_boundary = args[3].union(union_012).boundary
     else:
-        raise RuntimeWarning(f'Must contain either 2 or 3 polygons. You gave {len(args)} polygons.')
+        raise RuntimeWarning(f'Must contain 2 to 4 polygons. You gave {len(args)} polygons.')
 
     # If that produces one boundary...
     if union_boundary.geom_type == 'LineString':
@@ -272,11 +281,11 @@ def size_check(l_risk,u_risk):
     # Compute area
     lu_area = lu_eac.area
 
-    # Return true if lu_risk is 3.5x bigger area than u_risk.
+    # Return true if lu_risk is 5x bigger area than u_risk.
     return True if lu_area/u_area*100 > 500 else False
 
 
-# Take the list of extents, keep the unique ones, and order them.
+# Take the list of extents, order them, and keep the unique ones.
 def keep_unique_extents(extents_list,order):
     # Copy the original list, so it doesn't change.
     extents_copy = extents_list.copy()
@@ -301,7 +310,7 @@ def keep_unique_extents(extents_list,order):
 #   https://www.naturalearthdata.com/downloads/
 def get_shapes_list(res,cat,name):
     # Look for file here.
-    file_location = f'spc/ne_{res}_{name}/ne_{res}_{name}.shp'
+    file_location = f'map_features/ne_{res}_{name}/ne_{res}_{name}.shp'
 
     # If it's not there, get it.
     if not os.path.isfile(file_location):
@@ -314,9 +323,9 @@ def get_shapes_list(res,cat,name):
         folder = file.split('.')[0]
 
         for shp in glob.glob(f'{"/".join(orig_folder)}/{folder}.*'):
-            if not os.path.isdir(f'spc/{folder}'):
-                os.mkdir(f'spc/{folder}')
-            shutil.copy2(shp,f'spc/{folder}/{shp.split("/")[-1]}')
+            if not os.path.isdir(f'map_features/{folder}'):
+                os.mkdir(f'map_features/{folder}')
+            shutil.copy2(shp,f'map_features/{folder}/{shp.split("/")[-1]}')
 
     # With data in place, read the file...
     reader = shpreader.Reader(file_location)
@@ -657,23 +666,23 @@ def dist_in_grids(x,extent):
 
 # Get the shapes of US counties.
 def get_counties(data_crs):
-    file_location = './spc/countyp010g/countyp010g.shp'
+    file_location = './map_features/countyp010g/countyp010g.shp'
     data_file = 'https://prd-tnm.s3.amazonaws.com/StagedProducts/Small-scale/data/Boundaries/countyp010g.shp_nt00934.tar.gz'
     # If there is no local file, download it.
     if not os.path.isfile(file_location):
         file = data_file.split('/')[-1]
         folder = file.split('.')[0]
         with requests.get(data_file, stream=True) as r:
-            with open(f'spc/{folder}/{file}', 'wb') as f:
+            with open(f'map_features/{folder}/{file}', 'wb') as f:
                 for chunk in r.iter_content(chunk_size=128):
                     f.write(chunk)
 
         with tarfile.open(file, mode='r:gz') as tar_ref:
-            tar_ref.extractall(f'spc/{folder}')
+            tar_ref.extractall(f'map_features/{folder}')
             tar_ref.close()
 
-        if os.path.isfile(f'spc/{folder}/{file}'):
-            os.unlink(f'spc/{folder}/{file}')
+        if os.path.isfile(f'map_features/{folder}/{file}'):
+            os.unlink(f'map_features/{folder}/{file}')
     # Read local file and get county geometries.
     reader = shpreader.Reader(file_location)
     counties = list(reader.geometries())
@@ -803,7 +812,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
     """
 
     # Clear directories before getting data
-    target_folders = ['spc', 'zips']
+    target_folders = ['spc', 'zips', 'images', 'map_features']
     #target_folders = ['nhc', 'spc', 'wpc', 'drought', 'zips']
     for folder in target_folders:
         if not os.path.exists(folder):
@@ -826,20 +835,20 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
             for issuing_center in shapefiles:
                 for product in shapefiles[issuing_center]:
                     download_zip_files(issuing_center,product,shapefiles)
-            # Read file you want
-            cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
-            time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
-            time_since_issued = time_since_issued.total_seconds()
+                # Read file you want
+                cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
+                time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
+                time_since_issued = time_since_issued.total_seconds()
 
-            if time_since_issued > 9000 and override==False:  # 2.5 hours
-                print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
+                if time_since_issued > 9000 and override==False:  # 2.5 hours
+                    print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                    if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
+                    else:
+                        t.sleep(120)
+                        tries += 1
                 else:
-                    t.sleep(120)
-                    tries += 1
-            else:
-                print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                tries+=30
+                    print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                    tries+=30
 
     # For Day 4 through Day 8 forecasts...
     else:
@@ -849,19 +858,30 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                 for issuing_center in shapefiles:
                     for product in shapefiles[issuing_center]:
                         download_zip_files(issuing_center,product,shapefiles)
-                # Read file you want
-                if plot_day==3:
-                    cat_gdf = geopandas.read_file(f'spc/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
-                else:
-                    cat_gdf = geopandas.read_file(f'spc/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
-                print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                tries+=30
+                    # Read file you want
+                    if plot_day==3:
+                        cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
+                    else:
+                        cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
+                    print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                    tries+=30
             except:
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
                 if tries==29: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
                 else:
                     t.sleep(120)
                     tries+=1
+
+    # Delete data.
+    for folder in target_folders[:-2]:
+        print(folder)
+        if os.path.exists(folder):
+            clear_folder_contents(folder)
+            # If no more files in the folder, delete the folder.
+            print(folder,os.listdir(folder))
+            if not len(os.listdir(folder)):
+                shutil.rmtree(folder)
+
 
     # If there is no polygon, plot_nothing=True
     plot_nothing = len(cat_gdf)==1 and cat_gdf.loc[0].geometry is None
@@ -1556,33 +1576,33 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
     print('--> Save')
     start_timer = dt.now()
 
-    save_location = f'spc/day{plot_day}_categorical.png'
+    save_location = f'images/day{plot_day}_categorical.png'
 
     if plot_type=='exact':
-        save_location = f'spc/day{plot_day}_categorical.png'
+        save_location = f'images/day{plot_day}_categorical.png'
 
         # Save the figure.
         plt.savefig(save_location, dpi=96, bbox_inches='tight')
 
         # Copy file to places.
-        shutil.copy2(save_location,f'spc/latest_day{plot_day}_categorical.png')
-        shutil.copy2(save_location,f'spc/latest_exact.png')
+        shutil.copy2(save_location,f'images/latest_day{plot_day}_categorical.png')
+        shutil.copy2(save_location,f'images/latest_exact.png')
 
     elif plot_type=='smooth':
-        if not reply: save_location = f'spc/day{plot_day}_grid_categorical.png'
-        else: save_location = f'spc/day{plot_day}_{reply}_grid_categorical.png'
+        if not reply: save_location = f'images/day{plot_day}_grid_categorical.png'
+        else: save_location = f'images/day{plot_day}_{reply}_grid_categorical.png'
 
         # Save the figure.
         plt.savefig(save_location, dpi=96, bbox_inches='tight')
 
         # Copy file to places.
         if not reply:
-            shutil.copy2(save_location,f'spc/latest_day{plot_day}_categorical.png')
-            shutil.copy2(save_location,f'spc/latest_smooth.png')
+            shutil.copy2(save_location,f'images/latest_day{plot_day}_categorical.png')
+            shutil.copy2(save_location,f'images/latest_smooth.png')
 
         # If high risk, keep it!
         if len(cat_gdf)==6:
-            shutil.copy2(save_location,f'spc/latest_high.png')
+            shutil.copy2(save_location,f'images/latest_high.png')
 
         # Tweet the result.
         print('  --> Smooth and tweet.')
