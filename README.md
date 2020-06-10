@@ -29,32 +29,32 @@ If the Day 1-3 risk is less than a Slight Risk, the original unsmoothed polygon 
 
 ### Day 1
 
-![Day 1 Outlook](./spc/latest_day1_categorical.png)
+![Day 1 Outlook](./images/latest_day1_categorical.png)
 
 ### Day 2
 
-![Day 2 Outlook](./spc/latest_day2_categorical.png)
+![Day 2 Outlook](./images/latest_day2_categorical.png)
 
 ### Day 3
 
-![Day 3 Outlook](./spc/latest_day3_categorical.png)
+![Day 3 Outlook](./images/latest_day3_categorical.png)
 
 ### Day 4
 
-![Day 4 Outlook](./spc/latest_day4_categorical.png)
+![Day 4 Outlook](./images/latest_day4_categorical.png)
 
 ### Day 5
 
-![Day 5 Outlook](./spc/latest_day5_categorical.png)
+![Day 5 Outlook](./images/latest_day5_categorical.png)
 
 ### Day 6
 
-![Day 6 Outlook](./spc/latest_day6_categorical.png)
+![Day 6 Outlook](./images/latest_day6_categorical.png)
 
 ### Day 7
 
-![Day 7 Outlook](./spc/latest_day7_categorical.png)
+![Day 7 Outlook](./images/latest_day7_categorical.png)
 
 ### Day 8
 
-![Day 8 Outlook](./spc/latest_day8_categorical.png)
+![Day 8 Outlook](./images/latest_day8_categorical.png)
