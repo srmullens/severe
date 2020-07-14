@@ -63,7 +63,10 @@ from timezonefinder import TimezoneFinder
 
 from twython import Twython
 
-
+# Configuration lines for Cartopy.
+# Trying to prevent it from downloading Natural Earth data during the figure saving process.
+cartopy.config['data_dir']='/home/user/.local/map_features'
+cartopy.config['pre_existing_data_dir']='/home/user/.local/map_features'
 
 
 
