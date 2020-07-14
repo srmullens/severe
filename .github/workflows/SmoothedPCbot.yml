@@ -37,6 +37,9 @@ jobs:
         # One more.
         pip install timezonefinder
 
+    - name: Home directory
+      run: pwd
+
     - name: Run code
       id: run_code
       shell: bash
