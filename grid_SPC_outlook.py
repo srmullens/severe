@@ -85,7 +85,7 @@ plot_type = 'smooth'
 send_tweet = True
 
 # Need a plot_day, smoothing, and plot_type override?
-override = True                # Master 'override' flag
+override = False                # Master 'override' flag
 plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
