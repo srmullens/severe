@@ -65,9 +65,9 @@ from twython import Twython
 
 # Configuration lines for Cartopy.
 # Trying to prevent it from downloading Natural Earth data during the figure saving process.
-import cartopy
-cartopy.config['data_dir']='/home/runner/work/severe/severe/map_features'
-cartopy.config['pre_existing_data_dir']='/home/runner/work/severe/severe/map_features'
+#import cartopy
+#cartopy.config['data_dir']='/home/runner/work/severe/severe/map_features'
+#cartopy.config['pre_existing_data_dir']='/home/runner/work/severe/severe/map_features'
 
 
 
@@ -91,14 +91,14 @@ plot_type = 'smooth'
 send_tweet = True
 
 # Need a plot_day, smoothing, and plot_type override?
-override = False                # Master 'override' flag
+override = True                # Master 'override' flag
 plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
 if override:
     send_tweet = False
     plot_type_override = False
-    get_average_override = True
+    get_average_override = False
 
 
 
