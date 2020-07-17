@@ -1300,7 +1300,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
     issue_time_dt = dt.strptime(issue_time, '%Y%m%d%H%M').replace(tzinfo=tz.gettz('UTC'))
 
     # Use coords from polygon in middle of image to compute times to print.
-    polygon = cat_gdf.iloc[-1]['geometry'] if not reply else this_polygon
+    polygon = cat_gdf.iloc[-1]['geometry'] if not this_polygon else this_polygon
     start_time,end_time,issue_time = convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,where)
 
     # Generate legend patches
