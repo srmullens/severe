@@ -63,12 +63,6 @@ from timezonefinder import TimezoneFinder
 
 from twython import Twython
 
-# Configuration lines for Cartopy.
-# Trying to prevent it from downloading Natural Earth data during the figure saving process.
-#import cartopy
-#cartopy.config['data_dir']='/home/runner/work/severe/severe/map_features'
-#cartopy.config['pre_existing_data_dir']='/home/runner/work/severe/severe/map_features'
-
 
 
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
