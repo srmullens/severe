@@ -32,7 +32,7 @@ jobs:
         # This needs to be installed via apt-get...
         sudo apt-get install libproj-dev
         # ... but most everything else can come via conda-forge.
-        conda install -c conda-forge wheel numpy geos pandas geopandas requests pyshp matplotlib cartopy twython
+        conda install -c conda-forge wheel scipy numpy geos pandas pykdtree geopandas requests pyshp matplotlib cartopy twython
         # One more.
         pip install timezonefinder
 
