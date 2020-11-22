@@ -16,7 +16,7 @@ jobs:
       # This sets up conda... 
       # ...auto-creates a test environment (super annoying)...
       # ... and installs the python version and dependencies there.
-      uses: goanpeca/setup-miniconda@v1
+      uses: goanpeca/setup-miniconda@v2
       with:
         auto-update-conda: true
         miniconda-version: latest
