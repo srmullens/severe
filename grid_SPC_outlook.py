@@ -558,7 +558,7 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
         for i,item in enumerate(new_zones_list):
             zone = f'{start_utc_time.astimezone(tz.gettz(item)):%Z}'
             print(f'  --> {item}, {zone}')
-            if zone in ['EST','EDT','-05']:
+            if zone in ['EST','EDT']:
                 new_zones_list[i] = 'America/New_York'
             elif zone in ['CST','CDT']:
                 new_zones_list[i] = 'America/Chicago'
@@ -566,7 +566,17 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
                 new_zones_list[i] = 'America/Denver'
             elif zone in ['PST','PDT']:
                 new_zones_list[i] = 'America/Los_Angeles'
-
+            elif f'tz.gettz('America/New_York'):%Z'=='EST':
+                elif zone in ['-05']: new_zones_list[i] = 'America/New_York'
+                elif zone in ['-06']: new_zones_list[i] = 'America/Chicago'
+                elif zone in ['-07']: new_zones_list[i] = 'America/Denver'
+                elif zone in ['-08']: new_zones_list[i] = 'America/Los_Angeles'
+            elif f'tz.gettz('America/New_York'):%Z'=='EDT':
+                elif zone in ['-04']: new_zones_list[i] = 'America/New_York'
+                elif zone in ['-05']: new_zones_list[i] = 'America/Chicago'
+                elif zone in ['-06']: new_zones_list[i] = 'America/Denver'
+                elif zone in ['-07']: new_zones_list[i] = 'America/Los_Angeles'
+                         
         # Reduce list to unique time zones.
         print(f'  --> All time zones: {new_zones_list}')
         new_zones_list = list(set(new_zones_list))
