@@ -566,12 +566,12 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
                 new_zones_list[i] = 'America/Denver'
             elif zone in ['PST','PDT']:
                 new_zones_list[i] = 'America/Los_Angeles'
-            elif f'tz.gettz('America/New_York'):%Z'=='EST':
+            elif f'tz.gettz("America/New_York"):%Z'=='EST':
                 elif zone in ['-05']: new_zones_list[i] = 'America/New_York'
                 elif zone in ['-06']: new_zones_list[i] = 'America/Chicago'
                 elif zone in ['-07']: new_zones_list[i] = 'America/Denver'
                 elif zone in ['-08']: new_zones_list[i] = 'America/Los_Angeles'
-            elif f'tz.gettz('America/New_York'):%Z'=='EDT':
+            elif f'tz.gettz("America/New_York"):%Z'=='EDT':
                 elif zone in ['-04']: new_zones_list[i] = 'America/New_York'
                 elif zone in ['-05']: new_zones_list[i] = 'America/Chicago'
                 elif zone in ['-06']: new_zones_list[i] = 'America/Denver'
