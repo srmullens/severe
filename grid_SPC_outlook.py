@@ -556,7 +556,10 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
 
         # Standardize time zones
         for i,item in enumerate(new_zones_list):
+            #if item=='Etc/GMT+5': item='America/New_York'
+                         
             zone = f'{start_utc_time.astimezone(tz.gettz(item)):%Z}'
+            print(f'  --> {item}, {zone}')
             if zone in ['EST','EDT']:
                 new_zones_list[i] = 'America/New_York'
             elif zone in ['CST','CDT']:
