@@ -75,7 +75,7 @@ grid_res = 'low'
 
 # What SPC day do you want to plot?
 #   Current Operational Data (int between 1-8)
-plot_day = 2
+plot_day = 1
 #   Archived date and time: ['YYYYMMDD','HHMM',int between 1-8]
 #   Archived date must be >2020, due to SPC shapefile formatting.
 #plot_day = ['20201224','0600',1]
@@ -84,10 +84,10 @@ plot_day = 2
 plot_type = 'smooth'
 
 # Send tweet?
-send_tweet = False
+send_tweet = True
 
 # Need a plot_day, smoothing, and plot_type override?
-override = True                # Master 'override' flag
+override = False                # Master 'override' flag
 plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
