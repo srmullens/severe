@@ -65,6 +65,8 @@ from twython import Twython
 
 
 
+
+
 # What area do you want to plot? 'data', 'CONUS', 'Southeast', 'Florida'
 where='data'
 
@@ -73,26 +75,26 @@ grid_res = 'low'
 
 # What SPC day do you want to plot?
 #   Current Operational Data (int between 1-8)
-plot_day = 1
+plot_day = 2
 #   Archived date and time: ['YYYYMMDD','HHMM',int between 1-8]
-#   Archived date must be 2020, due to SPC shapefile formatting.
-#plot_day = ['20200514','1730',2]
+#   Archived date must be >2020, due to SPC shapefile formatting.
+#plot_day = ['20201224','0600',1]
 
 # What type of plot: 'exact' or 'smooth'
 plot_type = 'smooth'
 
 # Send tweet?
-send_tweet = True
+send_tweet = False
 
 # Need a plot_day, smoothing, and plot_type override?
-override = False                # Master 'override' flag
+override = True                # Master 'override' flag
 plot_type_override = False      # Independent of master 'override' flag.
 get_average_override = False    # Smoothing
 
 if override:
     send_tweet = False
     plot_type_override = False
-    get_average_override = False
+    get_average_override = True
 
 
 
@@ -257,7 +259,10 @@ def size_check(l_risk,u_risk):
     # Want size of l_risk + u_risk.
     lu_risk = l_risk.union(u_risk)
 
+    print("********** SIZE CHECK **********")
+
     # Convert u_risk polygon to projected equal area coordinates (eac).
+    # Mollweide = moll
     u_eac = sops.transform(
                 partial(
                     pyproj.transform,
@@ -269,7 +274,7 @@ def size_check(l_risk,u_risk):
     u_area = u_eac.area
 
     # Convert lu_risk polygon to projected equal area coordinates (eac).
-    #   Albers Equal Area = aea
+    # Mollweide = moll
     lu_eac = sops.transform(
                 partial(
                     pyproj.transform,
@@ -553,11 +558,14 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
 
         # Remove None values.
         new_zones_list = [i for i in new_zones_list if i]
+        print(f'  --> All time zones: {new_zones_list}')
 
         # Standardize time zones
         for i,item in enumerate(new_zones_list):
             zone = f'{start_utc_time.astimezone(tz.gettz(item)):%Z}'
             print(f'  --> {item}, {zone}')
+            if zone in ['AST','ADT']:
+                new_zones_list[i] = 'America/Halifax'
             if zone in ['EST','EDT']:
                 new_zones_list[i] = 'America/New_York'
             elif zone in ['CST','CDT']:
@@ -566,23 +574,28 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
                 new_zones_list[i] = 'America/Denver'
             elif zone in ['PST','PDT']:
                 new_zones_list[i] = 'America/Los_Angeles'
+            elif zone in ['AKST','AKDT']:
+                new_zones_list[i] = 'America/Juneau'
             elif f'{start_utc_time.astimezone(tz.gettz("America/New_York")):%Z}'=='EST':
-                if zone in ['-05']: new_zones_list[i] = 'America/New_York'
+                if zone in ['-04']: new_zones_list[i] = 'America/Halifax'
+                elif zone in ['-05']: new_zones_list[i] = 'America/New_York'
                 elif zone in ['-06']: new_zones_list[i] = 'America/Chicago'
                 elif zone in ['-07']: new_zones_list[i] = 'America/Denver'
                 elif zone in ['-08']: new_zones_list[i] = 'America/Los_Angeles'
-            elif f'{start_utc_time.astimezone(tz.gettz("America/New_York")):%Z}'=='EDT':               
-                if zone in ['-04']: new_zones_list[i] = 'America/New_York'
+                elif zone in ['-09']: new_zones_list[i] = 'America/Juneau'
+            elif f'{start_utc_time.astimezone(tz.gettz("America/New_York")):%Z}'=='EDT':
+                if zone in ['-03']: new_zones_list[i] = 'America/Halifax'
+                elif zone in ['-04']: new_zones_list[i] = 'America/New_York'
                 elif zone in ['-05']: new_zones_list[i] = 'America/Chicago'
                 elif zone in ['-06']: new_zones_list[i] = 'America/Denver'
                 elif zone in ['-07']: new_zones_list[i] = 'America/Los_Angeles'
-                         
+                elif zone in ['-08']: new_zones_list[i] = 'America/Juneau'
+
         # Reduce list to unique time zones.
-        print(f'  --> All time zones: {new_zones_list}')
         new_zones_list = list(set(new_zones_list))
 
         # Sort the resulting list from west to east.
-        west_to_east = ['America/Los_Angeles','America/Denver','America/Chicago','America/New_York','UTC']
+        west_to_east = ['America/Juneau','America/Los_Angeles','America/Denver','America/Chicago','America/New_York','America/Halifax','UTC']
         sort_by = []
         print(f'  --> Unique time zones: {new_zones_list}')
         for item in new_zones_list: sort_by.append(west_to_east.index(item))
@@ -846,18 +859,29 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                     download_zip_files(issuing_center,product,shapefiles)
                 # Read file you want
                 cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
-                time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
-                time_since_issued = time_since_issued.total_seconds()
+                #print(cat_gdf.head)
+                #print('ISSUE' in list(cat_gdf.columns))
+                #print(cat_gdf)
+                #print(cat_gdf.loc[0].geometry)
+                if 'ISSUE' in list(cat_gdf.columns):
+                    time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
+                    time_since_issued = time_since_issued.total_seconds()
 
-                if time_since_issued > 9000 and override==False:  # 2.5 hours
-                    print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                    if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
+                    if time_since_issued > 9000 and override==False:  # 2.5 hours
+                        print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
+                        else:
+                            t.sleep(120)
+                            tries += 1
                     else:
-                        t.sleep(120)
-                        tries += 1
+                        print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                        tries+=30
                 else:
-                    print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                    tries+=30
+                    if tries==29: print(f'No "ISSUE" column in day{plot_day}otlk_cat.shp after 60 minutes.'); return
+                    print(f"  --> Day {plot_day} has no 'ISSUE' column. Wait for another one. {dt.utcnow():%H%M} UTC")
+                    t.sleep(120)
+                    tries += 1
+
 
     # For Day 4 through Day 8 forecasts...
     else:
@@ -872,22 +896,26 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
                     else:
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
+                    print(cat_gdf.head)
+                    print(list(cat_gdf.columns))
+                    print(cat_gdf)
+                    print(cat_gdf.loc[0].geometry)
                     print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                     tries+=30
             except:
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
-                if tries==29: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 15 minutes.'); return
+                if tries==29: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 60 minutes.'); return
                 else:
                     t.sleep(120)
                     tries+=1
 
     # Delete data.
     for folder in target_folders[:-2]:
-        print(folder)
+        #print(folder)
         if os.path.exists(folder):
             clear_folder_contents(folder)
             # If no more files in the folder, delete the folder.
-            print(folder,os.listdir(folder))
+            #print(folder,os.listdir(folder))
             if not len(os.listdir(folder)):
                 shutil.rmtree(folder)
 
