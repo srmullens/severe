@@ -881,9 +881,15 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                     time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
                     time_since_issued = time_since_issued.total_seconds()
 
-                    if time_since_issued > 9000 and override==False:  # 2.5 hours
+                    if plot_day<3 and time_since_issued > 9000 and override==False:  # 2.5 hours
                         print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
+                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
+                        else:
+                            t.sleep(120)
+                            tries += 1
+                    elif plot_day==3 and time_since_issued > 32400 and override==False:  # 9 hours
+                        print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
                         else:
                             t.sleep(120)
                             tries += 1
@@ -910,10 +916,10 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
                     else:
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
-                    print(cat_gdf.head)
-                    print(list(cat_gdf.columns))
-                    print(cat_gdf)
-                    print(cat_gdf.loc[0].geometry)
+                    #print(cat_gdf.head)
+                    #print(list(cat_gdf.columns))
+                    #print(cat_gdf)
+                    #print(cat_gdf.loc[0].geometry)
                     print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                     tries+=30
             except:
@@ -1711,7 +1717,7 @@ if __name__ == '__main__':
     elif is_time_between(dttime(9,0),dttime(13,0),now=time): h1=8; h2=3; st=-1
     elif is_time_between(dttime(13,0),dttime(16,30),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(16,30),dttime(17,30),now=time): h1=1; h2=2; st=1
-    elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=3; st=1
+    elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=8; st=1
     elif is_time_between(dttime(20,0),dttime(23,59),now=time): h1=1; h2=2; st=1
                       
     #if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
