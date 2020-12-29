@@ -1707,7 +1707,7 @@ if __name__ == '__main__':
     if is_time_between(dttime(0,0),dttime(1,0),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(1,0),dttime(6,0),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(6,0),dttime(7,30),now=time): h1=1; h2=2; st=1
-    elif is_time_between(dttime(7,30),dttime(9,0),now=time): h1=1; h2=3; st=1
+    elif is_time_between(dttime(7,30),dttime(9,0),now=time): h1=2; h2=4; st=1
     elif is_time_between(dttime(9,0),dttime(13,0),now=time): h1=8; h2=3; st=-1
     elif is_time_between(dttime(13,0),dttime(16,30),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(16,30),dttime(17,30),now=time): h1=1; h2=2; st=1
