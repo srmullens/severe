@@ -56,7 +56,7 @@ from matplotlib.axes import Axes
 from cartopy.mpl.geoaxes import GeoAxes
 GeoAxes._pcolormesh_patched = Axes.pcolormesh
 
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, time as dttime
 from dateutil import tz
 import time as t
 from timezonefinder import TimezoneFinder
@@ -101,6 +101,20 @@ if override:
 ########################
 # Make some functions. #
 ########################
+
+# Checks whether time is between two hour, minute times.
+def is_time_between(begin_time, end_time, now=None):
+    # If check time is not given, default to current UTC time
+    date = dt.utcnow().date()
+    begin_time = dt(date.year,date.month,date.day,begin_time.hour,begin_time.minute)
+    end_time = dt(date.year,date.month,date.day,end_time.hour,end_time.minute)
+    print(begin_time,now,end_time)
+    now = now or dt.utcnow().time()
+    if begin_time < end_time:
+        return now >= begin_time and now <= end_time
+    else: # crosses midnight
+        return now >= begin_time or now <= end_time
+
 
 # Clears all contents of folder specified in the argument
 def clear_folder_contents(folder):
@@ -1689,10 +1703,21 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
 
 if __name__ == '__main__':
     time = dt.utcnow()
-    if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
-    elif time.hour in [17]: h1=2; h2=3; st=1
-    elif time.hour in [7]: h1=2; h2=4; st=1
-    else: h1=8; h2=3; st=-1
+
+    if is_time_between(dttime(0,0),dttime(1,0),now=time): h1=1; h2=2; st=1
+    elif is_time_between(dttime(1,0),dttime(6,0),now=time): h1=1; h2=2; st=1
+    elif is_time_between(dttime(6,0),dttime(7,30),now=time): h1=1; h2=2; st=1
+    elif is_time_between(dttime(7,30),dttime(9,0),now=time): h1=1; h2=3; st=1
+    elif is_time_between(dttime(9,0),dttime(13,0),now=time): h1=8; h2=3; st=-1
+    elif is_time_between(dttime(13,0),dttime(16,30),now=time): h1=1; h2=2; st=1
+    elif is_time_between(dttime(16,30),dttime(17,30),now=time): h1=1; h2=2; st=1
+    elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=3; st=1
+    elif is_time_between(dttime(20,0),dttime(23,59),now=time): h1=1; h2=2; st=1
+                      
+    #if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
+    #elif time.hour in [17]: h1=2; h2=3; st=1
+    #elif time.hour in [7]: h1=2; h2=4; st=1
+    #else: h1=8; h2=3; st=-1
 
     if override:
         if isinstance(plot_day,int):
