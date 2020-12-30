@@ -887,7 +887,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         else:
                             t.sleep(120)
                             tries += 1
-                    elif plot_day==3 and time_since_issued > 32400 and override==False:  # 9 hours
+                    elif plot_day==3 and time_since_issued > 39600 and override==False:  # 11 hours
                         print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                         if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
                         else:
