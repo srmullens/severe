@@ -1,10 +1,10 @@
 name: Gridded SPC Outlooks
 
 on: 
-  push
-  #schedule:
-  #  - cron: '0 1,6,9,13,20 * * *'
-  #  - cron: '30 7,16,17 * * *'
+  #push
+  schedule:
+    - cron: '0 1,6,9,13,20 * * *'
+    - cron: '30 7,16,17 * * *'
 
 jobs:
   build:
@@ -34,12 +34,9 @@ jobs:
         # Install via conda-forge.
         conda install -c conda-forge numpy pandas fiona shapely matplotlib cartopy twython timezonefinder
         conda install -c conda-forge geopandas
-        # This needs to be installed via apt-get...
-        #sudo apt-get install libproj-dev
-        # ... but most everything else can come via conda-forge.
-        #conda install -c conda-forge wheel scipy numpy geos pandas pykdtree geopandas requests pyshp matplotlib cartopy twython
-        # One more.
-        #pip install timezonefinder
+
+        # List installed packages
+        conda list
 
     - name: Home directory
       run: pwd
