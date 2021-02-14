@@ -27,7 +27,6 @@
 #####################################################################
 
 import requests
-from contextlib import closing
 import zipfile, tarfile
 import os, glob, shutil
 import numpy as np
@@ -94,7 +93,7 @@ get_average_override = False    # Smoothing
 if override:
     send_tweet = False
     plot_type_override = False
-    get_average_override = True
+    get_average_override = False
 
 
 
@@ -104,15 +103,26 @@ if override:
 
 # Checks whether time is between two hour, minute times.
 def is_time_between(begin_time, end_time, now=None):
-    # If check time is not given, default to current UTC time
+    # Get current date to use in next step.
     date = dt.utcnow().date()
+
+    # Make datetime objects out of the begin and end times.
     begin_time = dt(date.year,date.month,date.day,begin_time.hour,begin_time.minute)
     end_time = dt(date.year,date.month,date.day,end_time.hour,end_time.minute)
-    print(begin_time,now,end_time)
+
+    # Sanity check!
+    print(f'{begin_time}, {now}, {end_time}')
+
+    # If time to check is not given, default to current UTC time
     now = now or dt.utcnow().time()
+
+    # If the dates are oriented correctly...
     if begin_time < end_time:
+        # Return True if time to check is between begin and end times.
         return now >= begin_time and now <= end_time
+    # If not, return an error.
     else: # crosses midnight
+        print("ODD: BEGIN AND END TIME IN is_time_between() IS BACKWARD.")
         return now >= begin_time or now <= end_time
 
 
@@ -210,6 +220,61 @@ def get_polygons(gdf,loc):
         return polygons
 
 
+# Take multiple lower categories and at least one upper category.
+# Run through all combinations to see if multiple lower categories
+# can be treated as one single category.
+def condense_lowers(UPPERs,LOWERs,label):
+    # Flag to see if a successful combination was found and replaced
+    # two original polygons in the list of LOWERs.
+    replacement = False
+
+    # Make a list of all 2-item combinations of the lower category polygons.
+    lower_combos = list(itertools.combinations(LOWERs,2))
+
+    # Cycle through polygons searching for two lower polygons that can be
+    # combined into one.
+    for upper in UPPERs:
+        for lowers in lower_combos:
+            low_1 = lowers[0]
+            low_2 = lowers[1]
+
+            # Run the test
+            true_1 = this_contains_that(upper,low_1)
+            true_2 = this_contains_that(upper,low_2)
+
+            if true_1 and true_2:
+                replacement = True
+
+                # Remove low_1 and low_2 items from LOWERs.
+                print(f"--> Converging two {label}!")
+                new_LOWERs = []
+                for i,item in enumerate(LOWERs):
+                    if item==low_1 or item==low_2:
+                        continue
+                    else:
+                        new_LOWERs.append(item)
+
+                LOWERs = new_LOWERs
+
+                # Make a new single polygon for low_1 + low_2.
+                list_polygons =  [low_1,low_2]
+                multipolygon = shapely.geometry.MultiPolygon(list_polygons)
+
+                # Add new polygon to LOWERs.
+                LOWERs.append(multipolygon)
+
+            else:
+                replacement = False
+
+    # If a combo was found...
+    if replacement:
+        # ... run this again to make sure we're as condensed as possible.
+        condense_lowers(UPPERs,LOWERs,label)
+
+    # Return the lists of now condensed polygons.
+    return UPPERs,LOWERs
+
+
 # Determine if one polygon is inside the other.
 #   Probably helps if polygons listed in order of increasing risk,
 #   but that may not be strictly necessary.
@@ -299,7 +364,8 @@ def size_check(l_risk,u_risk):
     lu_area = lu_eac.area
 
     # Return true if lu_risk is 5x bigger area than u_risk.
-    return True if lu_area/u_area*100 > 500 else False
+    #return True if lu_area/u_area*100 > 500 else False
+    return False
 
 
 # Take the list of extents, order them, and keep the unique ones.
@@ -881,15 +947,9 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                     time_since_issued = dt.utcnow()-dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M')
                     time_since_issued = time_since_issued.total_seconds()
 
-                    if plot_day<3 and time_since_issued > 9000 and override==False:  # 2.5 hours
+                    if time_since_issued > 9000 and override==False:  # 2.5 hours
                         print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
-                        else:
-                            t.sleep(120)
-                            tries += 1
-                    elif plot_day==3 and time_since_issued > 39600 and override==False:  # 11 hours
-                        print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
+                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                         else:
                             t.sleep(120)
                             tries += 1
@@ -916,10 +976,10 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
                     else:
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
-                    #print(cat_gdf.head)
-                    #print(list(cat_gdf.columns))
-                    #print(cat_gdf)
-                    #print(cat_gdf.loc[0].geometry)
+                    print(cat_gdf.head)
+                    print(list(cat_gdf.columns))
+                    print(cat_gdf)
+                    print(cat_gdf.loc[0].geometry)
                     print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                     tries+=30
             except:
@@ -1009,6 +1069,16 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
             SLGTs = get_polygons(cat_gdf,2)
             MRGLs = get_polygons(cat_gdf,1)
 
+            # Condense low categories if they share a higher one.
+            if len(HIGHs)>0 and len(MDTs)>0:
+                HIGHs,MDTs = condense_lowers(HIGHs,MDTs,'MDTs')
+            if len(MDTs)>0 and len(ENHs)>0:
+                MDTs,ENHs = condense_lowers(MDTs,ENHs,'ENHs')
+            if len(ENHs)>0 and len(SLGTs)>0:
+                ENHs,SLGTs = condense_lowers(ENHs,SLGTs,'SLGTs')
+            if len(SLGTs)>0 and len(MRGLs)>0:
+                SLGTs,MRGLs = condense_lowers(SLGTs,MRGLs,'MRGLs')
+
             # Report at which levels polygons exist, and how many.
             no_poly_zone = Polygon([ [0, 0],[12, 0],[12, 12],[0, 12] ])
             nmrgl = f'{len(MRGLs)}' if any([not this_contains_that(MRGL,no_poly_zone) for MRGL in MRGLs]) else '-'
@@ -1024,6 +1094,10 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
             elif nmdt!='-': top_risk='mdt'
             elif nenh!='-': top_risk='enh'
 
+            # Cycle through polygons, consolidating lower categories that
+            # both contain the higher category.
+            #for h,HIGH in enumerate(HIGHs):
+            #    for m,MDT in enumerate(MDTs):
 
             # Cycle through all the polygons, finding out what to plot.
             for r,MRGL in enumerate(MRGLs):
@@ -1393,7 +1467,8 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
     # Plot the categories! #
     ########################
     if plot_type=='smooth':
-        kwargs = {'cmap':cm,
+        kwargs = {'shading':'nearest',
+                    'cmap':cm,
                     'vmin':0,
                     'vmax':6,
                     'rasterized':True,
@@ -1476,6 +1551,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
         roads = [rd.geometry for rd in roads]
 
         for rd in roads:
+
             rd_buffer = rd.buffer(0.015)
             ax.add_geometries([rd_buffer],crs=data_crs,facecolor=(1,1,1),edgecolor='none')
             ax.add_geometries([rd],crs=data_crs,facecolor='none',edgecolor=(0,0,0))
@@ -1709,17 +1785,18 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
 
 if __name__ == '__main__':
     time = dt.utcnow()
-
+    #print(dttime(1,0))
+    print('           Begin               Now                        End')
     if is_time_between(dttime(0,0),dttime(1,0),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(1,0),dttime(6,0),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(6,0),dttime(7,30),now=time): h1=1; h2=2; st=1
-    elif is_time_between(dttime(7,30),dttime(9,0),now=time): h1=2; h2=4; st=1
+    elif is_time_between(dttime(7,30),dttime(9,0),now=time): h1=1; h2=3; st=1
     elif is_time_between(dttime(9,0),dttime(13,0),now=time): h1=8; h2=3; st=-1
     elif is_time_between(dttime(13,0),dttime(16,30),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(16,30),dttime(17,30),now=time): h1=1; h2=2; st=1
-    elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=8; st=1
+    elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=3; st=1
     elif is_time_between(dttime(20,0),dttime(23,59),now=time): h1=1; h2=2; st=1
-                      
+
     #if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
     #elif time.hour in [17]: h1=2; h2=3; st=1
     #elif time.hour in [7]: h1=2; h2=4; st=1
@@ -1745,3 +1822,4 @@ if __name__ == '__main__':
     big_time_elapsed = dt.now() - big_start_timer
     tsec = round(big_time_elapsed.total_seconds(),2)
     print(f'\n--> Done ({tsec:.2f} seconds)')
+
