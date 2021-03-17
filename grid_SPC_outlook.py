@@ -1340,7 +1340,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
                        'Slight Risk': '#FFE066',
                        'Enhanced Risk': '#FFA366',
                        'Moderate Risk': '#E06666',
-                       'High Risk': 'magenta'}
+                       'High Risk': '#EE99EE'}
     prob_plot_colors = {'15% Any Severe Risk':'#FFE066',
                         '30% Any Severe Risk':'#FFA366'}
 
