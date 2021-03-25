@@ -634,7 +634,7 @@ def convert_datetime_from_spc_to_local(polygon,start_time,end_time,issue_time,wh
         if coords is not None:
             for coord in coords:
                 # What timezone is each coordinate of the highest risk in?
-                new_zones_list.append(tf.timezone_at(lng=coord[0], lat=coord[1]))
+                new_zones_list.append(tf.timezone_at_land(lng=coord[0], lat=coord[1]))
 
         # Remove None values.
         new_zones_list = [i for i in new_zones_list if i]
@@ -1434,9 +1434,11 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
     legend_patches = []
     for i,risk in enumerate(reversed(category_labels)):
         if risk == 'General Thunderstorms Risk':
-            patch = mpatches.Patch(color=cat_plot_colors[risk], label='Lightning Storms')
+            patch = mpatches.Patch(color=cat_plot_colors[risk], label='⚡️⚡️⚡️')
+            #patch = mpatches.Patch(color=cat_plot_colors[risk], label='Lightning Storms')
         elif plot_day<4:
-            patch = mpatches.Patch(color=cat_plot_colors[risk], label=f'{5-i}: {risk}')
+            patch = mpatches.Patch(color=cat_plot_colors[risk], label=f'{5-i}')
+            #patch = mpatches.Patch(color=cat_plot_colors[risk], label=f'{5-i}: {risk}')
         else:
             patch = mpatches.Patch(color=cat_plot_colors[risk], label=f'{risk}')
         legend_patches.append(patch)
