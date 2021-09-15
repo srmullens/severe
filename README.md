@@ -23,7 +23,6 @@ If the Day 1-3 risk is less than a Slight Risk, the original unsmoothed polygon 
 
 ## Known Issues
 1. The code has not been made flexible enough to plot archived data prior to 2020, which had different shapefile structures. Those shapefiles don't include all the data for each polygon. Most years keep polygons as single entities, so a different entry is needed for a separate polygon, even if the risk area is the same. Beginning in 2020, each entry indicates a unique risk area, with polygons being entered as multipolygons when needed.
-2. The colors that indicate each risk are provided through hard-coded HEX codes. These colors have been provided in the shapefile formats provided by the SPC starting in 2020. At this time, I cannot determine what the HIGH risk color is supposed to be.
 
 ## Latest maps
 
