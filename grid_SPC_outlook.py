@@ -1622,8 +1622,12 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
             if extent_poly.intersection(state.geometry):
                 # Get a point within the state to place the label.
                 partial_state = extent_poly.intersection(state.geometry)
-                #label_point = partial_state.representative_point()
-                label_point = sops.polylabel(partial_state, tolerance=1.0)
+                try:
+                    # partial_state is a Polygon
+                    label_point = sops.polylabel(partial_state, tolerance=1.0)
+                except:
+                    # partial_state is a MultiPolygon
+                    label_point = partial_state.representative_point()
 
                 # Process state name
                 state_name = state.attributes["name"].upper()
