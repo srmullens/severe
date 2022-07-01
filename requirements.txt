@@ -1,5 +1,5 @@
 requests==2.23.0
-numpy==1.18.1
+numpy==1.22.0
 Shapely==1.6.4.post1
 geopandas==0.7.0
 Cartopy==0.17.0
