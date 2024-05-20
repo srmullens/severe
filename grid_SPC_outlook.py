@@ -60,7 +60,7 @@ from dateutil import tz
 import time as t
 from timezonefinder import TimezoneFinder
 
-from twython import Twython
+#from twython import Twython
 
 
 
@@ -83,7 +83,7 @@ plot_day = 1
 plot_type = 'smooth'
 
 # Send tweet?
-send_tweet = True
+send_tweet = False
 
 # Need a plot_day, smoothing, and plot_type override?
 override = False                # Master 'override' flag
@@ -1756,7 +1756,7 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
             else:
                 tweet_text = f'Issued at {issue_time}: SPC forecast for TODAY, {US_time_dt:%A, %B %-d}.'
             print(f'    --> Tweet: {tweet_text}')
-            tweet(tweet_text, save_location, send_tweet, reply)
+            #tweet(tweet_text, save_location, send_tweet, reply)
 
         elif plot_day==2:
             if int(issue_time_dt.strftime('%-H'))<12:
@@ -1764,12 +1764,12 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
             else:
                 tweet_text = f'Issued at {issue_time}: SPC forecast for tomorrow, {start_time_dt:%A, %B %-d}.'
             print(f'    --> Tweet: {tweet_text}')
-            tweet(tweet_text, save_location, send_tweet, reply)
+            #tweet(tweet_text, save_location, send_tweet, reply)
 
         else:
             tweet_text = f'SPC forecast for {start_time_dt:%A, %B %-d}.'
             print(f'    --> Tweet: {tweet_text}')
-            tweet(tweet_text, save_location, send_tweet, reply)
+            #tweet(tweet_text, save_location, send_tweet, reply)
 
         print('  --> Smooth: Tweeted.')
 
