@@ -12,28 +12,29 @@ jobs:
     steps:
 
     # Checkout allows us to use the files in this repository.
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Setup Miniconda
       # This sets up conda... 
       # ...auto-creates a test environment (super annoying)...
       # ... and installs the python version and dependencies there.
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         miniconda-version: latest
-        activate-environment: test
+        #activate-environment: test
         python-version: 3.8.5
       
     - name: Install dependencies
+      shell: bash -el {0}
       run: |
         # Change source to use conda commands
-        source /usr/share/miniconda3/etc/profile.d/conda.sh
+        # source /usr/share/miniconda3/etc/profile.d/conda.sh
         # Change environment to where all the dependencies are installed anyway.
-        conda activate test
+        # conda activate test
         
         # Install via conda-forge.
         #conda install -c conda-forge numpy==1.20.1 pandas==1.2.2 fiona==1.8.18 shapely==1.7.1 matplotlib==3.3.4 cartopy==0.19.0.post1 twython==3.7.0 timezonefinder==5.2.0
-        conda install -c conda-forge numpy==1.20.1 pandas==1.2.2 fiona==1.8.18 shapely==1.7.1 matplotlib==3.4.3 cartopy==0.19.0.post1 twython==3.7.0 timezonefinder==5.2.0
+        conda install -c conda-forge numpy==1.20.1 pandas==1.2.2 fiona==1.8.18 shapely==1.7.1 matplotlib==3.4.3 cartopy==0.19.0.post1 timezonefinder==5.2.0
         #conda install -c conda-forge numpy==1.21.1 pandas==1.3.2 fiona==1.8.18 shapely==1.7.1 matplotlib==3.4.3 cartopy==0.19.0.post1 twython==3.7.0 timezonefinder==5.2.0
         conda install -c conda-forge geopandas==0.8.2
 
@@ -41,32 +42,39 @@ jobs:
         conda list
 
     - name: Home directory
+      shell: bash -el {0}
       run: pwd
 
     - name: Run code
-      id: run_code
-      shell: bash
-      env:
-        consumer_key: ${{ secrets.TWITTER_API_KEY }}
-        consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
-        access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-        access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      shell: bash -el {0}
       run: |
-        # Change source to use conda commands
-        source /usr/share/miniconda3/etc/profile.d/conda.sh
-        # Change environment to where all the dependencies were installed.
-        conda activate test
         # Run the code!
         python3 grid_SPC_outlook.py
 
+    #- name: Run code
+      #id: run_code
+      #shell: bash
+      #env:
+      #  consumer_key: ${{ secrets.TWITTER_API_KEY }}
+      #  consumer_secret: ${{ secrets.TWITTER_API_SECRET_KEY }}
+      #  access_token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+      #  access_token_secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+      #run: |
+      #  # Change source to use conda commands
+      #  source /usr/share/miniconda3/etc/profile.d/conda.sh
+      #  # Change environment to where all the dependencies were installed.
+      #  conda activate test
+      #  # Run the code!
+      #  python3 grid_SPC_outlook.py
+
     # We created some files. But we need to commit them to the repository.
     - name: Commit files
+      shell: bash -el {0}
       run: |
           git config --local user.email ${{ secrets.SECRET_MAIL_FROM }}
           git config --local user.name ${{ secrets.SECRET_GITHUB_USERNAME }}
           git add .        # Adds file to commit
           git add --all    # Adds only the file, not the folder where Python & conda was set up.
-          # git commit -m "Add changes"
           git diff --quiet && git diff --staged --quiet || git commit -am 'Add changes'
 
     # Now push committed changes to the repo.
