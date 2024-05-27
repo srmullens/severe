@@ -932,7 +932,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
 
     # For Day 1 and Day 3 forecasts...
     if plot_day<4:
-        while tries<30:
+        while tries<8:
             # Download ZIP files
             for issuing_center in shapefiles:
                 for product in shapefiles[issuing_center]:
@@ -949,7 +949,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
 
                     if time_since_issued > 9000 and override==False:  # 2.5 hours
                         print(f"  --> Not available yet. {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                        if tries==29: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
+                        if tries==7: print(f'Could not find day{plot_day}otlk_cat.shp after 15 minutes.'); return
                         else:
                             t.sleep(120)
                             tries += 1
@@ -957,7 +957,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         print(f"  --> Got it! {time_since_issued:.0f}={dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                         tries+=30
                 else:
-                    if tries==29: print(f'No "ISSUE" column in day{plot_day}otlk_cat.shp after 60 minutes.'); return
+                    if tries==7: print(f'No "ISSUE" column in day{plot_day}otlk_cat.shp after 60 minutes.'); return
                     print(f"  --> Day {plot_day} has no 'ISSUE' column. Wait for another one. {dt.utcnow():%H%M} UTC")
                     t.sleep(120)
                     tries += 1
@@ -965,7 +965,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
 
     # For Day 4 through Day 8 forecasts...
     else:
-        while tries<30:
+        while tries<8:
             try:
                 # Download ZIP files
                 for issuing_center in shapefiles:
@@ -984,7 +984,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                     tries+=30
             except:
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
-                if tries==29: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 60 minutes.'); return
+                if tries==7: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 60 minutes.'); return
                 else:
                     t.sleep(120)
                     tries+=1
