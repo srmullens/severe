@@ -1806,7 +1806,7 @@ if __name__ == '__main__':
     elif is_time_between(dttime(13,0),dttime(17,30),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=3; st=1
     elif is_time_between(dttime(20,0),dttime(23,59),now=time): h1=1; h2=2; st=1
-    print(f'Plot days {','.join(range(h1,h2,st))}')
+    print(f'Plot days {",".join(range(h1,h2,st))}')
     
     #if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
     #elif time.hour in [17]: h1=2; h2=3; st=1
