@@ -110,14 +110,14 @@ def is_time_between(begin_time, end_time, now=None):
     begin_time = dt(date.year,date.month,date.day,begin_time.hour,begin_time.minute)
     end_time = dt(date.year,date.month,date.day,end_time.hour,end_time.minute)
 
-    # Sanity check!
-    print(f'{begin_time}, {now}, {end_time}')
-
     # If time to check is not given, default to current UTC time
     now = now or dt.utcnow().time()
 
     # If the dates are oriented correctly...
     if begin_time < end_time:
+        # Sanity check!
+        print(f'{begin_time}, {now}, {end_time}')
+
         # Return True if time to check is between begin and end times.
         return now >= begin_time and now <= end_time
     # If not, return an error.
@@ -173,6 +173,8 @@ def download_zip_file(file_url, root_folder):
     if not isinstance(root_folder,str):
         raise TypeError(f'folder must by type string, not {type(root_folder)}')
 
+    print(f'Get file at URL: {file_url}')
+    
     # Get the bits needed for processing.
     file = file_url.split('/')[-1]
     folder = file.split('.')[0]
@@ -196,6 +198,7 @@ def download_zip_file(file_url, root_folder):
                 if os.path.isfile(os.path.join(mypath, f))]
     for j,file in enumerate(files):
         new_fname = file.replace(remove_chars,'')
+        print(f'Downloaded {new_fname}')
         shutil.move(file,new_fname)
 
 
@@ -984,7 +987,9 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                     tries+=30
             except:
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
-                if tries==7: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 60 minutes.'); return
+                if tries==7: 
+                    if plot_day==3: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
+                    else: print(f'Could not find day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp after 60 minutes.'); return
                 else:
                     t.sleep(120)
                     tries+=1
@@ -1801,7 +1806,8 @@ if __name__ == '__main__':
     elif is_time_between(dttime(13,0),dttime(17,30),now=time): h1=1; h2=2; st=1
     elif is_time_between(dttime(17,30),dttime(20,0),now=time): h1=2; h2=3; st=1
     elif is_time_between(dttime(20,0),dttime(23,59),now=time): h1=1; h2=2; st=1
-
+    print(f'Plot days {','.join(range(h1,h2,st))}')
+    
     #if time.hour in [1,6,12,13,16,20]: h1=1; h2=2; st=1
     #elif time.hour in [17]: h1=2; h2=3; st=1
     #elif time.hour in [7]: h1=2; h2=4; st=1
