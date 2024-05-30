@@ -1700,8 +1700,10 @@ def plot_SPC_outlook(where,plot_type,plot_type_override,plot_day,grid_res,overri
         att_ha='right'
 
     # Add attribution
-    text = '@SmoothedPC'
+    text = 'Stephen Mullens'
     kwargs = {'weight':'bold',
+                    'color':'gray',
+                    'bbox':dict(boxstyle="round",ec='white',fc="white",alpha=0.75),
                     'va':'bottom',
                     'ha':att_ha,
                     'snap':True,
