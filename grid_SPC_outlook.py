@@ -979,13 +979,15 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}otlk-shp/day{plot_day}otlk_cat.shp')
                     else:
                         cat_gdf = geopandas.read_file(f'{issuing_center}/day{plot_day}prob-shp/day{plot_day}otlk_{start_timer:%Y%m%d}_prob.shp')
-                    print(cat_gdf.head)
-                    print(list(cat_gdf.columns))
-                    print(cat_gdf)
-                    print(cat_gdf.loc[0].geometry)
+                    print('HEAD:',cat_gdf.head)
+                    print('COLUMNS:',list(cat_gdf.columns))
+                    #print(cat_gdf)
+                    print('GEOMETRY:',cat_gdf.loc[0].geometry)
+                    print('ISSUE TIME:',cat_gdf['ISSUE'][0])
                     print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
                     tries+=30
             except:
+                print('except ISSUE TIME:',cat_gdf['ISSUE'][0])
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
                 if tries==7: 
                     if plot_day==3: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
