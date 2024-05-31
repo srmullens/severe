@@ -983,9 +983,21 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                     print('COLUMNS:',list(cat_gdf.columns))
                     #print(cat_gdf)
                     print('GEOMETRY:',cat_gdf.loc[0].geometry)
-                    print('ISSUE TIME:',cat_gdf['ISSUE'][0])
-                    print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
-                    tries+=30
+                    if 'ISSUE' in cat_gdf.keys():
+                        print('ISSUE TIME:',cat_gdf['ISSUE'][0])
+                        print(f"  --> Got it! {dt.utcnow():%H%M} UTC - {dt.strptime(cat_gdf['ISSUE'][0],'%Y%m%d%H%M').strftime('%H%M')}")
+                        tries+=30
+                    else:
+                        with open("day4prob-shp/day4otlk_20240531_prob.info","r") as f:
+                            info_file = f.readline().split(':',1)
+                        product_valid_time = dt.strptime(info_file[1].strip(),"%Y-%m-%d %H:%M:%S%z")
+                        today = dt.now(timezone.utc).replace(hour=12,minute=0,second=0,microsecond=0)
+                        product_category_day = (product_valid_time - today).days+1
+                        if product_category_day==plot_day:
+                            print(f"  --> Found Day {plot_day} outlook. No polygon.")
+                            return
+                        elif product_category_day!=plot_day:
+                            return False
             except:
                 print('except ISSUE TIME:',cat_gdf['ISSUE'][0])
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
