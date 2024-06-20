@@ -999,7 +999,7 @@ def get_SPC_data(where,plot_type,plot_type_override,plot_day,grid_res,override):
                         elif product_category_day!=plot_day:
                             return False
             except:
-                print('except ISSUE TIME:',cat_gdf['ISSUE'][0])
+                #print('except ISSUE TIME:',cat_gdf['ISSUE'][0])
                 print(f'  --> Not available yet. {dt.utcnow():%H%M} UTC')
                 if tries==7: 
                     if plot_day==3: print(f'Could not find day{plot_day}otlk_cat.shp after 60 minutes.'); return
